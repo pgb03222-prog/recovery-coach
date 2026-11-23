@@ -12,6 +12,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // 외부 오픈소스 도구(Clawd on Desk)는 이 앱의 검사 대상이 아니다.
+    "clawd-on-desk/**",
   ]),
 ]);
 
