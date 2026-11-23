@@ -1,8 +1,8 @@
 // 회복 점수 계산(score.ts)이 PRD 감점표와 DESIGN §10.1 시험 표대로 나오는지 확인한다.
-// 60점 상한은 다음 작업에서 더하므로, 여기서는 "상한 적용 전" 점수를 확인한다.
+// calculateRawScore는 60점 상한 적용 전 점수이고, calculateScore는 상한까지 적용한 최종 점수이다.
 
 import { describe, expect, it } from "vitest";
-import { calculateScore, getPenalties } from "./score";
+import { calculateRawScore, calculateScore, getCapCauses, getPenalties } from "./score";
 import type { RecoveryInput, YesterdayType } from "./types";
 
 /** 입력을 짧게 만드는 도우미 */
@@ -20,7 +20,7 @@ function input(
 const rested = (sleepHours: number, soreness: number): RecoveryInput =>
   ({ yesterdayType: "none", sleepHours, soreness });
 
-describe("calculateScore - DESIGN 시험 표", () => {
+describe("calculateRawScore - DESIGN 시험 표", () => {
   it.each([
     ["#1 쉰 날, 수면 8, 근육통 1", rested(8, 1), 100],
     ["#2 유산소 60분 힘든 5, 수면 4.5, 근육통 2", input("cardio", 60, 5, 4.5, 2), 50],
@@ -35,16 +35,16 @@ describe("calculateScore - DESIGN 시험 표", () => {
     ["#12 근력 60분 힘든 7, 수면 7, 근육통 2", input("strength", 60, 7, 7, 2), 70],
     ["#13 유산소 45분 힘든 5, 수면 8, 근육통 1", input("cardio", 45, 5, 8, 1), 90],
   ])("%s → %i점", (_name, value, expected) => {
-    expect(calculateScore(value)).toBe(expected);
+    expect(calculateRawScore(value)).toBe(expected);
   });
 
   it("#8 같은 입력이면 항상 같은 점수가 나온다", () => {
     const value = input("cardio", 60, 5, 6.5, 3);
-    expect(calculateScore(value)).toBe(calculateScore({ ...value }));
+    expect(calculateRawScore(value)).toBe(calculateRawScore({ ...value }));
   });
 });
 
-describe("calculateScore - 경계값", () => {
+describe("calculateRawScore - 경계값", () => {
   it.each([
     [7, 100],
     [6.5, 90],
@@ -54,7 +54,7 @@ describe("calculateScore - 경계값", () => {
     [4.5, 70],
     [0, 70],
   ])("수면 %s시간만 달라지면 %i점 (상한 전)", (sleep, expected) => {
-    expect(calculateScore(rested(sleep, 1))).toBe(expected);
+    expect(calculateRawScore(rested(sleep, 1))).toBe(expected);
   });
 
   it.each([
@@ -64,7 +64,7 @@ describe("calculateScore - 경계값", () => {
     [4, 70],
     [5, 60],
   ])("근육통 %i점만 달라지면 %i점", (soreness, expected) => {
-    expect(calculateScore(rested(8, soreness))).toBe(expected);
+    expect(calculateRawScore(rested(8, soreness))).toBe(expected);
   });
 
   it.each([
@@ -77,7 +77,7 @@ describe("calculateScore - 경계값", () => {
     [9, 70],
     [10, 70],
   ])("어제 힘든 정도 %i만 달라지면 %i점", (effort, expected) => {
-    expect(calculateScore(input("cardio", 60, effort, 8, 1))).toBe(expected);
+    expect(calculateRawScore(input("cardio", 60, effort, 8, 1))).toBe(expected);
   });
 
   it.each([
@@ -85,18 +85,18 @@ describe("calculateScore - 경계값", () => {
     [90, 90],
     [240, 90],
   ])("어제 운동 %i분만 달라지면 %i점 (90분부터 -10)", (minutes, expected) => {
-    expect(calculateScore(input("cardio", minutes, 3, 8, 1))).toBe(expected);
+    expect(calculateRawScore(input("cardio", minutes, 3, 8, 1))).toBe(expected);
   });
 
   it("0점 아래로는 내려가지 않는다", () => {
-    expect(calculateScore(input("strength", 240, 10, 0, 5))).toBe(0);
+    expect(calculateRawScore(input("strength", 240, 10, 0, 5))).toBe(0);
   });
 });
 
-describe("calculateScore - 쉰 날", () => {
+describe("calculateRawScore - 쉰 날", () => {
   it("힘든 정도와 운동 시간 값이 와 있어도 점수에 쓰지 않는다", () => {
     const withExtra = { yesterdayType: "none", yesterdayMinutes: 240, yesterdayEffort: 10, sleepHours: 8, soreness: 1 } as const;
-    expect(calculateScore(withExtra)).toBe(100);
+    expect(calculateRawScore(withExtra)).toBe(100);
   });
 });
 
@@ -119,16 +119,106 @@ describe("getPenalties", () => {
   });
 });
 
+describe("calculateScore - 60점 상한", () => {
+  it("#3 근육통 4점이면 70점이 60점으로 깎인다", () => {
+    expect(calculateScore(input("yoga", 30, 3, 7, 4))).toEqual({
+      rawScore: 70,
+      score: 60,
+      capped: true,
+      capCauses: ["soreness"],
+    });
+  });
+
+  it("#14 수면 5시간 미만이면 70점이 60점으로 깎이고, 5시간부터는 깎이지 않는다", () => {
+    const results = [7, 6, 5, 4.5].map((sleep) => calculateScore(rested(sleep, 1)));
+    expect(results.map((result) => result.score)).toEqual([100, 90, 80, 60]);
+    expect(results.map((result) => result.capped)).toEqual([false, false, false, true]);
+    expect(results[3].capCauses).toEqual(["sleep"]);
+  });
+
+  it("근육통 3점은 상한이 걸리지 않는다", () => {
+    expect(calculateScore(rested(8, 3))).toEqual({ rawScore: 80, score: 80, capped: false, capCauses: [] });
+  });
+
+  it("조건에 해당해도 점수가 이미 60점이면 깎이지 않은 것으로 본다 (근거 문장을 쓰지 않는다)", () => {
+    // 근육통 5점: 감점 40점 → 60점
+    expect(calculateScore(rested(7, 5))).toEqual({
+      rawScore: 60,
+      score: 60,
+      capped: false,
+      capCauses: ["soreness"],
+    });
+  });
+
+  it("조건에 해당해도 점수가 60점보다 낮으면 그대로 둔다", () => {
+    // 근육통 4점 + 수면 4시간: 감점 60점 → 40점
+    expect(calculateScore(rested(4, 4))).toEqual({
+      rawScore: 40,
+      score: 40,
+      capped: false,
+      capCauses: ["soreness", "sleep"],
+    });
+  });
+
+  it("상한 조건이 없으면 감점만 반영한 점수와 같다", () => {
+    const value = input("cardio", 60, 5, 6.5, 2);
+    const result = calculateScore(value);
+    expect(result.score).toBe(calculateRawScore(value));
+    expect(result.capped).toBe(false);
+    expect(result.capCauses).toEqual([]);
+  });
+
+  it("입력 조합 전체에서: 상한 조건이면 60점을 넘지 않고, 아니면 감점만 반영한 점수와 같다", () => {
+    for (let soreness = 1; soreness <= 5; soreness += 1) {
+      for (let sleep = 0; sleep <= 14; sleep += 0.5) {
+        for (const value of [rested(sleep, soreness), input("strength", 100, 9, sleep, soreness), input("yoga", 30, 2, sleep, soreness)]) {
+          const result = calculateScore(value);
+          const conditionMet = soreness >= 4 || sleep < 5;
+          if (conditionMet) {
+            expect(result.score).toBeLessThanOrEqual(60);
+          } else {
+            expect(result.score).toBe(result.rawScore);
+          }
+          expect(result.score).toBeLessThanOrEqual(result.rawScore);
+        }
+      }
+    }
+  });
+
+  it("같은 입력이면 항상 같은 결과가 나온다", () => {
+    const value = input("sports", 80, 6, 4.5, 3);
+    expect(calculateScore(value)).toEqual(calculateScore({ ...value }));
+  });
+
+  it("검사를 통과하지 못한 입력은 오류를 던진다", () => {
+    expect(() => calculateScore(rested(8, 7))).toThrow(RangeError);
+  });
+});
+
+describe("getCapCauses", () => {
+  it.each([
+    [rested(8, 3), []],
+    [rested(8, 4), ["soreness"]],
+    [rested(8, 5), ["soreness"]],
+    [rested(5, 1), []],
+    [rested(4.5, 1), ["sleep"]],
+    [rested(0, 1), ["sleep"]],
+    [rested(4, 4), ["soreness", "sleep"]],
+  ])("근육통·수면 조합 %#", (value, expected) => {
+    expect(getCapCauses(value)).toEqual(expected);
+  });
+});
+
 describe("검사를 통과하지 못한 입력", () => {
   it("운동을 했는데 힘든 정도나 시간이 없으면 오류를 던진다", () => {
-    expect(() => calculateScore(input("cardio", 60, undefined, 8, 1))).toThrow(RangeError);
-    expect(() => calculateScore(input("cardio", undefined, 5, 8, 1))).toThrow(RangeError);
+    expect(() => calculateRawScore(input("cardio", 60, undefined, 8, 1))).toThrow(RangeError);
+    expect(() => calculateRawScore(input("cardio", undefined, 5, 8, 1))).toThrow(RangeError);
   });
 
   it("범위 밖 값이면 오류를 던진다", () => {
-    expect(() => calculateScore(rested(-1, 1))).toThrow(RangeError);
-    expect(() => calculateScore(rested(8, 7))).toThrow(RangeError);
-    expect(() => calculateScore(rested(8, 2.5))).toThrow(RangeError);
-    expect(() => calculateScore(input("cardio", 60, 11, 8, 1))).toThrow(RangeError);
+    expect(() => calculateRawScore(rested(-1, 1))).toThrow(RangeError);
+    expect(() => calculateRawScore(rested(8, 7))).toThrow(RangeError);
+    expect(() => calculateRawScore(rested(8, 2.5))).toThrow(RangeError);
+    expect(() => calculateRawScore(input("cardio", 60, 11, 8, 1))).toThrow(RangeError);
   });
 });

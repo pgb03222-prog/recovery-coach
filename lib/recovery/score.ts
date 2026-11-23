@@ -1,13 +1,17 @@
 // Design Ref: §4 데이터 흐름 2단계, PRD §5 감점표 — 100점에서 감점을 빼서 회복 점수를 계산한다.
-// 이 파일은 "상한 적용 전" 점수까지만 계산한다. 60점 상한은 다음 작업(점수 상한 규칙)에서 더한다.
+// 감점만 반영한 점수(calculateRawScore)에 60점 상한을 더한 최종 점수(calculateScore)를 계산한다.
+// 다른 곳에서는 최종 점수를 돌려주는 calculateScore를 쓴다.
 // 규칙 숫자는 모두 constants.ts에 있고, 여기서는 그 값을 읽어서 쓴다.
 
 import {
+  CAP_SLEEP_BELOW_HOURS,
+  CAP_SORENESS_AT_LEAST,
   EFFORT_PENALTIES,
   LONG_WORKOUT_MINUTES,
   LONG_WORKOUT_PENALTY,
   MAX_SCORE,
   MIN_SCORE,
+  SCORE_CAP,
   SLEEP_PENALTIES,
   SORENESS_PENALTIES,
 } from "./constants";
@@ -63,12 +67,51 @@ export function getPenalties(input: RecoveryInput): Penalty[] {
 }
 
 /**
- * 회복 점수(0~100)를 계산한다. 100점에서 감점을 모두 빼고, 0점 아래로는 내려가지 않는다.
+ * 감점만 반영한 점수(0~100)를 계산한다. 100점에서 감점을 모두 빼고, 0점 아래로는 내려가지 않는다.
  * 같은 입력이면 항상 같은 점수가 나온다.
  *
- * 주의: 60점 상한(근육통 4점 이상, 수면 5시간 미만)은 아직 적용하지 않은 점수이다.
+ * 주의: 60점 상한은 적용하기 전 점수이다. 사용자에게 보여 줄 최종 점수는 calculateScore를 쓴다.
  */
-export function calculateScore(input: RecoveryInput): number {
+export function calculateRawScore(input: RecoveryInput): number {
   const totalPenalty = getPenalties(input).reduce((sum, penalty) => sum + penalty.amount, 0);
   return Math.max(MIN_SCORE, MAX_SCORE - totalPenalty);
+}
+
+/** 점수 상한을 거는 원인 */
+export type CapCause = "soreness" | "sleep";
+
+/**
+ * 60점 상한 조건에 해당하는 원인을 돌려준다. (근육통 → 수면 순서)
+ * - 근육통이 4점 이상이면 "soreness"
+ * - 수면이 5시간 미만이면 "sleep"
+ * 점수가 이미 60점 이하여도 조건에 해당하면 원인은 목록에 들어간다.
+ */
+export function getCapCauses(input: RecoveryInput): CapCause[] {
+  const causes: CapCause[] = [];
+  if (input.soreness >= CAP_SORENESS_AT_LEAST) causes.push("soreness");
+  if (input.sleepHours < CAP_SLEEP_BELOW_HOURS) causes.push("sleep");
+  return causes;
+}
+
+/** 최종 점수 계산 결과 */
+export interface ScoreResult {
+  /** 감점만 반영한 점수 (상한 적용 전) */
+  rawScore: number;
+  /** 최종 점수. 상한이 걸리면 60점을 넘지 않는다. */
+  score: number;
+  /** 상한 때문에 점수가 실제로 낮아졌는지. "60점까지만 나와요" 근거는 이 값이 true일 때만 보여 준다. */
+  capped: boolean;
+  /** 상한 조건에 해당하는 원인 (capped가 true일 때 근거 문장에 쓴다) */
+  capCauses: CapCause[];
+}
+
+/**
+ * 최종 회복 점수를 계산한다. 감점을 반영한 점수에, 근육통 4점 이상이거나 수면 5시간 미만이면
+ * 60점을 넘지 않는다는 상한을 건다. 같은 입력이면 항상 같은 결과가 나온다.
+ */
+export function calculateScore(input: RecoveryInput): ScoreResult {
+  const rawScore = calculateRawScore(input);
+  const capCauses = getCapCauses(input);
+  const score = capCauses.length > 0 ? Math.min(rawScore, SCORE_CAP) : rawScore;
+  return { rawScore, score, capped: score < rawScore, capCauses };
 }
