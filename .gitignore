@@ -39,3 +39,9 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# trash-can (files waiting for manual deletion)
+/trash-can/
+
+# clawd-on-desk (external open-source tool, not part of this app)
+/clawd-on-desk/
