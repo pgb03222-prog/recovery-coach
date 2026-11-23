@@ -9,6 +9,9 @@ export const CONSULT_NOTICE = "통증이 계속되면 전문가와 상담하세�
 /** 근육통이 5점일 때 추가로 보여 주는 안내 문구 */
 export const SEVERE_SORENESS_NOTICE = "통증이 심하면 운동을 쉬고 전문가와 상의하세요";
 
+/** 화면에 항상 보여 주는 참고용 안내 문구 (PRD §7). 점수와 추천이 진단으로 오해되지 않게 한다. */
+export const DISCLAIMER_TEXT = "이 앱은 진단이 아니라 참고용 안내입니다";
+
 /** 근육통이 이 값이면 추가 안내를 보여 준다. */
 const SEVERE_SORENESS = 5;
 

@@ -1,7 +1,8 @@
+import Disclaimer from "@/components/Disclaimer";
 import RecoveryScreen from "@/components/RecoveryScreen";
 
-// Design Ref: §3 화면 구성 — 한 페이지(`/`)에서 위에서 아래로 입력 → 결과 순서로 보인다.
-// 입력과 결과 화면은 RecoveryScreen이 이어 붙인다. 참고용 안내 문구는 PLAN 14번 작업에서 더한다.
+// Design Ref: §3 화면 구성 — 한 페이지(`/`)에서 위에서 아래로 입력 → 결과 → 참고용 안내 순서로 보인다.
+// 입력과 결과 화면은 RecoveryScreen이 이어 붙이고, 참고용 안내 문구는 결과 유무와 상관없이 맨 아래에 항상 있다.
 export default function Home() {
   return (
     <main className="mx-auto flex w-full max-w-md flex-1 flex-col gap-6 px-4 py-8">
@@ -12,6 +13,7 @@ export default function Home() {
         </p>
       </header>
       <RecoveryScreen />
+      <Disclaimer />
     </main>
   );
 }
