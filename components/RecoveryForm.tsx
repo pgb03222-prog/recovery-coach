@@ -2,14 +2,14 @@
 
 // Design Ref: §3 화면 구성 — 입력 5개 칸과 "확인하기" 버튼. 휴대폰 세로 화면을 기준으로 한 줄(한 열)로 배치한다.
 // Plan SC: 입력 5개, "어제 운동 안 함"이면 시간·힘든 정도 칸을 숨기고, 잘못된 값에는 안내를 보여 준다.
-// 계산 결과 화면은 PLAN 11~12번 작업에서 이 아래에 이어 붙인다.
+// 입력이 모두 올바르면 onSubmit으로 검사를 통과한 입력을 넘긴다. 서버 호출과 결과 화면은 RecoveryScreen이 맡는다.
 
 import { useState } from "react";
 import type { FormEvent } from "react";
 import { INPUT_LIMITS, YESTERDAY_TYPE_LABELS } from "@/lib/recovery/constants";
 import { EMPTY_FORM_VALUES, parseFormValues } from "@/lib/recovery/form";
 import type { FormValues } from "@/lib/recovery/form";
-import type { YesterdayType } from "@/lib/recovery/types";
+import type { RecoveryInput, YesterdayType } from "@/lib/recovery/types";
 import type { FieldErrors } from "@/lib/recovery/validate";
 
 /** 칸의 위에서 아래 순서. 잘못된 칸이 여럿이면 가장 위의 칸으로 커서를 옮긴다. */
@@ -154,10 +154,16 @@ function ScaleField({ name, legend, min, max, lowLabel, highLabel, value, error,
   );
 }
 
-export default function RecoveryForm() {
+interface RecoveryFormProps {
+  /** 입력이 모두 올바를 때, 검사를 통과한 입력을 넘겨받는다. */
+  onSubmit: (input: RecoveryInput) => void;
+  /** 결과를 계산하는 동안 true. 버튼을 잠가 같은 요청이 겹치지 않게 한다. */
+  submitting?: boolean;
+}
+
+export default function RecoveryForm({ onSubmit, submitting = false }: RecoveryFormProps) {
   const [values, setValues] = useState<FormValues>(EMPTY_FORM_VALUES);
   const [errors, setErrors] = useState<FieldErrors>({});
-  const [confirmed, setConfirmed] = useState(false);
 
   /** "어제 운동 안 함"이면 시간과 힘든 정도 칸을 숨긴다. */
   const rested = values.yesterdayType === "none";
@@ -171,7 +177,6 @@ export default function RecoveryForm() {
       delete next[name];
       return next;
     });
-    setConfirmed(false);
   }
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -180,11 +185,10 @@ export default function RecoveryForm() {
 
     if (result.ok) {
       setErrors({});
-      setConfirmed(true);
+      onSubmit(result.data);
       return;
     }
 
-    setConfirmed(false);
     setErrors(result.errors);
     // 가장 위의 잘못된 칸으로 커서를 옮겨, 어디를 고칠지 바로 알 수 있게 한다.
     const first = FIELD_ORDER.find((name) => result.errors[name]);
@@ -285,18 +289,15 @@ export default function RecoveryForm() {
 
       <button
         type="submit"
+        disabled={submitting}
         className={
           "h-12 w-full rounded-xl bg-emerald-700 text-base font-semibold text-white hover:bg-emerald-800 " +
+          "disabled:cursor-not-allowed disabled:opacity-60 " +
           "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700"
         }
       >
-        확인하기
+        {submitting ? "계산 중…" : "확인하기"}
       </button>
-
-      {/* 입력이 모두 올바르면 알려 준다. 결과 화면은 다음 작업에서 이 아래에 이어 붙인다. */}
-      <div role="status" aria-live="polite">
-        {confirmed && <p className="text-sm font-medium text-emerald-800 dark:text-emerald-400">입력이 모두 올바르게 확인되었어요.</p>}
-      </div>
     </form>
   );
 }
