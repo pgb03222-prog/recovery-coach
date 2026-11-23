@@ -1,8 +1,13 @@
 // POST /api/recommend가 DESIGN §5의 응답 모양과 상태 코드대로 동작하는지 확인한다.
 
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { createOpenAiAsk } from "../../../lib/ai/openai";
+import type { AskAi } from "../../../lib/ai/explain";
 import { calculateRecovery } from "../../../lib/recovery/recommend";
 import { POST } from "./route";
+
+// 시험에서는 실제 OpenAI를 부르지 않는다. 평소에는 AI가 없는(키 없음) 상태로 두고, 필요한 시험에서만 가짜 AI를 끼운다.
+vi.mock("../../../lib/ai/openai", () => ({ createOpenAiAsk: vi.fn(() => undefined) }));
 
 // 500 오류를 확인하려고 계산 함수만 바꿔 끼울 수 있게 감싼다. 평소에는 진짜 함수를 그대로 쓴다.
 vi.mock("../../../lib/recovery/recommend", async (importOriginal) => {
@@ -61,6 +66,70 @@ describe("POST /api/recommend - 정상", () => {
     const first = await (await POST(post(valid))).json();
     const second = await (await POST(post(valid))).json();
     expect(first).toEqual(second);
+  });
+});
+
+describe("POST /api/recommend - AI 설명", () => {
+  /** valid 입력(50점, 가벼움)에 맞는 AI 설명 */
+  const GOOD_AI_TEXT =
+    "오늘 회복 점수는 50점이에요. 수면이 5시간 미만이라 30점이 줄어든 것이 가장 컸어요. 그래서 가벼움 강도로 가벼운 걷기 30분 같은 운동을 추천해요.";
+
+  it("AI가 규칙에 맞는 설명을 주면 설명만 AI 문장이 되고, 점수·강도·추천은 그대로이다", async () => {
+    const ruleBody = await (await POST(post(valid))).json();
+    vi.mocked(createOpenAiAsk).mockReturnValueOnce(async () => GOOD_AI_TEXT);
+
+    const body = await (await POST(post(valid))).json();
+    expect(body.explanationSource).toBe("ai");
+    expect(body.explanation).toBe(GOOD_AI_TEXT);
+    expect({ ...body, explanation: undefined, explanationSource: undefined }).toEqual({
+      ...ruleBody,
+      explanation: undefined,
+      explanationSource: undefined,
+    });
+  });
+
+  it("AI에게는 계산 결과만 보내고 입력 원값은 보내지 않는다", async () => {
+    const ask = vi.fn<AskAi>(async () => GOOD_AI_TEXT);
+    vi.mocked(createOpenAiAsk).mockReturnValueOnce(ask);
+
+    await POST(post(valid));
+    expect(ask).toHaveBeenCalledTimes(1);
+    const sent = JSON.stringify(ask.mock.calls[0][0]);
+    expect(sent).toContain("회복 점수");
+    for (const rawKey of ["sleepHours", "soreness", "yesterdayMinutes", "yesterdayEffort", "yesterdayType"]) {
+      expect(sent).not.toContain(rawKey);
+    }
+  });
+
+  it("AI가 실패해도 200이고 규칙 기본 문장이 들어간다", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    vi.mocked(createOpenAiAsk).mockReturnValueOnce(async () => {
+      throw new Error("AI 서비스 오류");
+    });
+
+    const response = await POST(post(valid));
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.explanationSource).toBe("rule");
+    expect(body.explanation).toContain("오늘 회복 점수는 50점이에요.");
+  });
+
+  it("AI가 규칙에 어긋나는 설명(진단 표현)을 주면 규칙 기본 문장으로 바꾼다", async () => {
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+    vi.mocked(createOpenAiAsk).mockReturnValueOnce(async () => "오늘 회복 점수는 50점이에요. 피로 진단 결과 쉬세요.");
+
+    const body = await (await POST(post(valid))).json();
+    expect(body.explanationSource).toBe("rule");
+    expect(body.explanation).not.toContain("진단");
+  });
+
+  it("입력이 틀렸을 때는 AI를 부르지 않는다", async () => {
+    const ask = vi.fn<AskAi>(async () => GOOD_AI_TEXT);
+    vi.mocked(createOpenAiAsk).mockReturnValueOnce(ask);
+
+    expect((await POST(post({ ...valid, sleepHours: 20 }))).status).toBe(400);
+    expect(ask).not.toHaveBeenCalled();
+    vi.mocked(createOpenAiAsk).mockReset().mockReturnValue(undefined);
   });
 });
 
