@@ -34,14 +34,14 @@ function fieldOrder(selectedTypes: WorkoutType[]): string[] {
 /** 칸 이름 글자 스타일 */
 const LABEL_CLASS = "text-sm font-medium";
 /** 보조 설명 글자 스타일 */
-const HINT_CLASS = "break-keep text-xs text-zinc-600 dark:text-zinc-400";
+const HINT_CLASS = "break-keep text-xs text-muted";
 /** 잘못된 값 안내 글자 스타일 */
-const ERROR_CLASS = "text-sm text-red-700 dark:text-red-400";
+const ERROR_CLASS = "text-sm text-danger";
 /** 글자·숫자 입력 칸 스타일. 16px 글자라 휴대폰에서 칸을 누를 때 화면이 확대되지 않는다. */
 const CONTROL_CLASS =
-  "h-11 w-full rounded-lg border border-zinc-300 bg-background px-3 text-base text-foreground " +
-  "dark:border-zinc-600 aria-[invalid=true]:border-red-600 dark:aria-[invalid=true]:border-red-400 " +
-  "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700";
+  "h-11 w-full rounded-xl border border-line bg-surface px-3 text-base text-foreground " +
+  "aria-[invalid=true]:border-danger " +
+  "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-strong";
 
 /** 칸 설명과 오류 안내를 칸에 이어 주는 id 목록 */
 function describedBy(id: string, hint?: string, error?: string) {
@@ -133,10 +133,10 @@ function ScaleField({ name, legend, min, max, lowLabel, highLabel, value, error,
             />
             <span
               className={
-                "flex h-11 cursor-pointer items-center justify-center rounded-lg border border-zinc-300 text-base font-medium " +
-                "hover:bg-zinc-100 dark:border-zinc-600 dark:hover:bg-zinc-800 " +
-                "peer-checked:border-emerald-700 peer-checked:bg-emerald-700 peer-checked:text-white " +
-                "peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-emerald-700"
+                "flex h-11 cursor-pointer items-center justify-center rounded-xl border border-line bg-surface text-base font-medium " +
+                "hover:bg-accent-soft " +
+                "peer-checked:border-accent-strong peer-checked:bg-accent-strong peer-checked:text-on-accent " +
+                "peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-accent-strong"
               }
             >
               {number}
@@ -184,10 +184,10 @@ function CheckOption({
       />
       <span
         className={
-          "flex min-h-11 cursor-pointer items-center justify-center rounded-lg border border-zinc-300 px-2 text-center text-base font-medium break-keep " +
-          "hover:bg-zinc-100 dark:border-zinc-600 dark:hover:bg-zinc-800 " +
-          "peer-checked:border-emerald-700 peer-checked:bg-emerald-700 peer-checked:text-white " +
-          "peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-emerald-700"
+          "flex min-h-11 cursor-pointer items-center justify-center rounded-xl border border-line bg-surface px-2 text-center text-base font-medium break-keep " +
+          "hover:bg-accent-soft " +
+          "peer-checked:border-accent-strong peer-checked:bg-accent-strong peer-checked:text-on-accent " +
+          "peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-accent-strong"
         }
       >
         {label}
@@ -275,8 +275,13 @@ export default function RecoveryForm({ onSubmit, submitting = false }: RecoveryF
 
   return (
     <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-6">
-      <section className="flex flex-col gap-4 rounded-2xl border border-zinc-200 p-4 dark:border-zinc-700">
-        <h2 className="text-lg font-semibold">어제 운동</h2>
+      <section className="flex flex-col gap-5 rounded-3xl bg-surface p-5 shadow-card">
+        <h2 className="flex items-center gap-2 text-lg font-bold">
+          <span aria-hidden="true" className="flex size-8 items-center justify-center rounded-full bg-accent-soft text-base">
+            🏃
+          </span>
+          어제 운동
+        </h2>
 
         <fieldset
           className="flex flex-col gap-1.5"
@@ -308,7 +313,7 @@ export default function RecoveryForm({ onSubmit, submitting = false }: RecoveryF
           const partsError = errors[`${prefix}.strengthParts`];
           const title = WORKOUT_TYPE_LABELS[type];
           return (
-            <div key={type} className="flex flex-col gap-4 rounded-xl bg-zinc-100 p-3 dark:bg-zinc-800">
+            <div key={type} className="flex flex-col gap-4 rounded-2xl bg-surface-soft p-4">
               <h3 className="text-base font-semibold">{title}</h3>
               <NumberField
                 name={`${prefix}.minutes`}
@@ -365,8 +370,13 @@ export default function RecoveryForm({ onSubmit, submitting = false }: RecoveryF
         })}
       </section>
 
-      <section className="flex flex-col gap-4 rounded-2xl border border-zinc-200 p-4 dark:border-zinc-700">
-        <h2 className="text-lg font-semibold">오늘 컨디션</h2>
+      <section className="flex flex-col gap-5 rounded-3xl bg-surface p-5 shadow-card">
+        <h2 className="flex items-center gap-2 text-lg font-bold">
+          <span aria-hidden="true" className="flex size-8 items-center justify-center rounded-full bg-accent-soft text-base">
+            🌙
+          </span>
+          오늘 컨디션
+        </h2>
 
         <NumberField
           name="sleepHours"
@@ -398,9 +408,9 @@ export default function RecoveryForm({ onSubmit, submitting = false }: RecoveryF
         type="submit"
         disabled={submitting}
         className={
-          "h-12 w-full rounded-xl bg-emerald-700 text-base font-semibold text-white hover:bg-emerald-800 " +
+          "h-12 w-full rounded-2xl bg-accent-strong text-base font-semibold text-on-accent hover:brightness-110 " +
           "disabled:cursor-not-allowed disabled:opacity-60 " +
-          "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700"
+          "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-strong"
         }
       >
         {submitting ? "계산 중…" : "확인하기"}

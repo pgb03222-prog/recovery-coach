@@ -5,8 +5,11 @@ import { DISCLAIMER_TEXT } from "@/lib/recovery/notices";
 
 export default function Disclaimer() {
   return (
-    <footer className="border-t border-zinc-200 pt-4 dark:border-zinc-700">
-      <p className="text-sm break-keep text-zinc-700 dark:text-zinc-300">{DISCLAIMER_TEXT}</p>
+    <footer className="flex items-center justify-center gap-2 rounded-2xl bg-surface-soft px-4 py-3">
+      <span aria-hidden="true" className="flex size-5 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-bold text-background">
+        i
+      </span>
+      <p className="text-sm break-keep text-muted">{DISCLAIMER_TEXT}</p>
     </footer>
   );
 }

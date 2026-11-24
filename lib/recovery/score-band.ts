@@ -4,13 +4,28 @@
 import { intensityFromScore } from "./intensity";
 import type { Intensity } from "./types";
 
-/** 강도 구간별 막대 색 (Tailwind 클래스). 겁을 주는 빨강 대신 차분한 장미색을 쓴다. */
+/**
+ * 강도 구간별 색 (Tailwind 클래스). 색 값은 globals.css의 --band-* 이고, 겁을 주는 빨강 대신 차분한 점토색을 쓴다.
+ * 막대는 bg-, 원형 게이지는 text-(선 색이 글자색을 따라간다) 클래스를 쓴다.
+ */
 export const SCORE_BAR_COLORS: Record<Intensity, string> = {
-  rest: "bg-rose-600",
-  light: "bg-amber-600",
-  moderate: "bg-emerald-600",
-  high: "bg-emerald-700",
+  rest: "bg-band-rest",
+  light: "bg-band-light",
+  moderate: "bg-band-moderate",
+  high: "bg-band-high",
 };
+
+export const SCORE_TEXT_COLORS: Record<Intensity, string> = {
+  rest: "text-band-rest",
+  light: "text-band-light",
+  moderate: "text-band-moderate",
+  high: "text-band-high",
+};
+
+/** 점수에 맞는 원형 게이지 선 색 클래스를 돌려준다. */
+export function scoreTextColor(score: number): string {
+  return SCORE_TEXT_COLORS[intensityFromScore(score)];
+}
 
 /** 점수에 맞는 막대 색 클래스를 돌려준다. */
 export function scoreBarColor(score: number): string {

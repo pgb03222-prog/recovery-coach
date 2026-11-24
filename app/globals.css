@@ -1,28 +1,81 @@
 @import "tailwindcss";
 
+/* 디자인 토큰: 차분한 웰니스 느낌. 따뜻한 베이지 바탕에 세이지(연두빛 회녹색)를 포인트 색으로 쓴다. */
+/* 글자와 바탕의 대비는 모두 읽기 편한 수준(4.5:1 이상)으로 맞췄다. 어두운 화면 설정에서는 아래 값이 바뀐다. */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #f4f1ea; /* 바탕 */
+  --foreground: #26332d; /* 글자 */
+  --surface: #ffffff; /* 카드 */
+  --surface-soft: #ebe7dc; /* 카드 안의 연한 칸 */
+  --line: #d9d4c6; /* 테두리·빈 막대 */
+  --muted: #56655c; /* 보조 글자 */
+  --accent: #3f8f72; /* 포인트(막대, 강조) */
+  --accent-strong: #2c6b55; /* 버튼, 선택된 칸 */
+  --accent-soft: #dcebe2; /* 포인트의 연한 바탕 */
+  --on-accent: #ffffff; /* 포인트 색 위의 글자 */
+  --danger: #a13c3c; /* 오류 안내 */
+  --notice-bg: #fbf0d9; /* 근육통 5점 안내 */
+  --notice-line: #b98221;
+  --notice-ink: #4a3410;
+  --band-rest: #b4574a; /* 점수 구간 색: 휴식 */
+  --band-light: #b98221; /* 가벼움 */
+  --band-moderate: #3f8f72; /* 보통 */
+  --band-high: #1f7a73; /* 높음 */
+  --shadow: 0 1px 2px rgb(38 51 45 / 0.06), 0 8px 24px rgb(38 51 45 / 0.07);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #131a17;
+    --foreground: #e6eee8;
+    --surface: #1c2521;
+    --surface-soft: #25312b;
+    --line: #34443b;
+    --muted: #a6b6ad;
+    --accent: #6fc3a2;
+    --accent-strong: #7fd0af;
+    --accent-soft: #22382e;
+    --on-accent: #0e1d16;
+    --danger: #f0a0a0;
+    --notice-bg: #3a2f14;
+    --notice-line: #d6a43f;
+    --notice-ink: #fbe9c4;
+    --band-rest: #e08a7b;
+    --band-light: #e0b04f;
+    --band-moderate: #6fc3a2;
+    --band-high: #55c7bd;
+    --shadow: 0 1px 2px rgb(0 0 0 / 0.4), 0 8px 24px rgb(0 0 0 / 0.35);
+  }
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
+  --color-surface: var(--surface);
+  --color-surface-soft: var(--surface-soft);
+  --color-line: var(--line);
+  --color-muted: var(--muted);
+  --color-accent: var(--accent);
+  --color-accent-strong: var(--accent-strong);
+  --color-accent-soft: var(--accent-soft);
+  --color-on-accent: var(--on-accent);
+  --color-danger: var(--danger);
+  --color-notice-bg: var(--notice-bg);
+  --color-notice-line: var(--notice-line);
+  --color-notice-ink: var(--notice-ink);
+  --color-band-rest: var(--band-rest);
+  --color-band-light: var(--band-light);
+  --color-band-moderate: var(--band-moderate);
+  --color-band-high: var(--band-high);
+  --shadow-card: var(--shadow);
+  --font-sans: var(--font-noto-sans-kr), var(--font-geist-sans), system-ui, sans-serif;
   --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-noto-sans-kr), system-ui, sans-serif;
 }
 
 /* 모션: 결과가 나올 때 카드가 아래에서 부드럽게 올라오고, 막대가 왼쪽에서 채워진다. */
@@ -47,6 +100,12 @@ body {
   }
 }
 
+@keyframes motion-ring {
+  from {
+    stroke-dashoffset: var(--ring-total);
+  }
+}
+
 @keyframes motion-pulse {
   0%,
   100% {
@@ -68,6 +127,11 @@ body {
   animation-delay: var(--delay, 0ms);
 }
 
+.motion-ring {
+  animation: motion-ring 1000ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation-delay: var(--delay, 0ms);
+}
+
 .motion-pulse {
   animation: motion-pulse 1.2s ease-in-out infinite;
 }
@@ -76,6 +140,7 @@ body {
 @media (prefers-reduced-motion: reduce) {
   .motion-fade-up,
   .motion-grow-x,
+  .motion-ring,
   .motion-pulse {
     animation: none;
   }

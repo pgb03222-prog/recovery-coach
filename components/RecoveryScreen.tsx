@@ -44,11 +44,11 @@ export default function RecoveryScreen() {
       <RecoveryForm onSubmit={handleSubmit} submitting={submitting} />
 
       <div role="status" aria-live="polite">
-        {submitting && <p className="motion-pulse text-sm text-zinc-600 dark:text-zinc-400">결과를 계산하고 있어요…</p>}
+        {submitting && <p className="motion-pulse text-sm text-muted">결과를 계산하고 있어요…</p>}
       </div>
 
       {errorMessage && (
-        <p role="alert" className="text-sm break-keep text-red-700 dark:text-red-400">
+        <p role="alert" className="text-sm break-keep text-danger">
           {errorMessage}
         </p>
       )}
