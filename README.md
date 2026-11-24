@@ -1,36 +1,80 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# 리커버리 코치 (Recovery Coach)
 
-## Getting Started
+어제 한 운동과 오늘 컨디션을 입력하면, **오늘의 회복 점수**와 **오늘 하면 좋은 운동의 강도·종류**를 근거와 함께 알려 주는 웹 앱입니다.
 
-First, run the development server:
+> 이 앱은 진단이 아니라 참고용 안내입니다.
+
+- **만든 사람:** 박규빈
+- **대상:** 자기 회복 상태를 스스로 판단하기 어려운 운동인 (특히 운동을 막 시작한 초보)
+- **목적:** 컨디션을 제대로 파악하지 못해 무리하는 일을 막는다.
+
+## 무엇을 해 주나요
+
+1. **회복 상태 확인:** 입력값으로 0~100점의 회복 점수를 계산하고, 점수가 그렇게 나온 이유를 한 줄씩 보여 줍니다.
+2. **오늘의 운동 추천:** 오늘의 강도(휴식 / 가벼움 / 보통 / 높음)와 운동 1~3개를 이유와 함께 추천합니다. 근력 운동은 어제 쓴 부위를 피해 상체·하체·코어 중 다른 부위로 추천하고, 참고용 세부 종목을 작은 글씨로 보여 줍니다.
+
+### 입력
+
+- 어제 한 운동 (유산소, 근력, 구기·스포츠, 요가·스트레칭, 기타 중 여러 개 선택. 운동마다 시간과 힘든 정도, 근력은 쓴 부위) 또는 "어제 운동 안 함"
+- 어젯밤 수면 시간
+- 오늘 근육통 정도
+
+### 점수와 추천은 규칙으로 계산합니다
+
+- 점수, 강도, 추천 운동은 **정해 둔 규칙**으로 계산합니다. (예: 수면 5시간 미만이면 −30점, 근육통이 4점 이상이면 점수는 60점을 넘기지 않음) 같은 입력이면 항상 같은 결과가 나옵니다.
+- 외부 AI(OpenAI)는 **이미 계산된 결과를 풀어 쓰는 설명 문장 한 단락**만 씁니다. AI에는 계산 결과만 보내고, 응답은 한 번 더 검사해서 규칙에 어긋나거나 느리거나 실패하면 규칙으로 만든 기본 문장으로 대신합니다.
+- 입력값은 서버에 저장하지 않습니다. 로그인도 없습니다.
+
+규칙의 자세한 숫자와 이유는 [PRD.md](PRD.md), 개발 계획은 [PLAN.md](PLAN.md), 설계는 [DESIGN.md](DESIGN.md)에 있습니다.
+
+## 기술
+
+- [Next.js](https://nextjs.org/) (App Router) · React · TypeScript · Tailwind CSS
+- 서버 쪽 코드(API): `POST /api/recommend`
+- 입력 검사: [zod](https://zod.dev/)
+- 규칙 시험: [vitest](https://vitest.dev/)
+- 설명 문장: [OpenAI API](https://platform.openai.com/) (선택 사항. 키가 없으면 기본 문장 사용)
+- 배포: [Vercel](https://vercel.com/)
+
+## 직접 실행하기
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm install
+npm run dev      # http://localhost:3000
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+AI 설명 문장을 쓰려면 프로젝트 폴더에 `.env` 파일을 만들고 키를 넣습니다. 키가 없어도 앱은 기본 설명 문장으로 동작합니다.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```
+OPENAI_API_KEY=여기에_키를_넣으세요
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+`.env`는 `.gitignore`에 등록되어 GitHub에 올라가지 않습니다. 변수 이름에 `NEXT_PUBLIC_`을 붙이지 마세요. 붙이면 방문자에게 키가 보입니다.
 
-## Learn More
+### 명령어
 
-To learn more about Next.js, take a look at the following resources:
+| 명령어 | 하는 일 |
+|---|---|
+| `npm run dev` | 개발 서버 실행 |
+| `npm run build` | 배포용으로 빌드 |
+| `npm start` | 빌드한 앱 실행 |
+| `npm run lint` | 코드 검사 |
+| `npm test` | 규칙 시험 실행 |
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## 보안 메모
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+- 키는 서버 코드에서만 읽고 브라우저로 내려보내지 않습니다.
+- API는 JSON 본문 1KB 이하만 받고, 같은 주소가 1분에 10번을 넘게 부르면 429로 막습니다. (접속 주소와 호출 시각은 서버 메모리에 1분 정도만 둡니다.)
+- 보안 헤더(CSP 등)를 켜 두었습니다.
 
-## Deploy on Vercel
+## 폴더
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```
+app/            화면(page.tsx)과 서버 쪽 코드(api/recommend)
+components/     입력 폼, 점수 카드, 추천 카드, 안내 문구
+lib/recovery/   점수·강도·추천 규칙과 입력 검사
+lib/ai/         AI 설명 문장 요청과 응답 검사
+PRD.md          기획서
+PLAN.md         개발 계획서
+DESIGN.md       설계서
+```
