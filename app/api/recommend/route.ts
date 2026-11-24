@@ -5,6 +5,7 @@
 
 import { explainResult } from "../../../lib/ai/explain";
 import { createOpenAiAsk } from "../../../lib/ai/openai";
+import { checkRateLimit, getClientKey } from "../../../lib/rate-limit";
 import { calculateRecovery } from "../../../lib/recovery/recommend";
 import { validateRecoveryInput } from "../../../lib/recovery/validate";
 
@@ -20,6 +21,15 @@ export async function POST(request: Request) {
   // 0. 형식 검사: JSON으로 보낸 요청만 받는다. (다른 사이트가 form 형식으로 몰래 보내는 요청을 막는다)
   if (!request.headers.get("content-type")?.toLowerCase().startsWith("application/json")) {
     return errorResponse(415, "UNSUPPORTED_MEDIA_TYPE", "JSON 형식으로 보내 주세요.");
+  }
+
+  // 0-1. 호출 횟수 제한: 같은 주소가 1분에 너무 많이 부르면 429. (OpenAI 요금 남용 방지)
+  const limit = checkRateLimit(getClientKey(request));
+  if (!limit.allowed) {
+    return Response.json(
+      { error: { code: "RATE_LIMITED", message: "요청이 너무 많아요. 잠시 후 다시 시도해 주세요." } },
+      { status: 429, headers: { "Retry-After": String(limit.retryAfterSeconds) } },
+    );
   }
 
   // 1. 요청 본문 읽기: 너무 크면 413, JSON이 아니면 400

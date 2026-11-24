@@ -1,7 +1,7 @@
 // 화면이 서버를 부르는 함수(api.ts)가 어떤 응답에도 깨지지 않고 안내 문구를 돌려주는지 확인한다.
 
 import { describe, expect, it, vi } from "vitest";
-import { FETCH_FAILED_MESSAGE, requestRecommendation } from "./api";
+import { FETCH_FAILED_MESSAGE, RATE_LIMITED_MESSAGE, requestRecommendation } from "./api";
 import { calculateRecovery } from "./recommend";
 import type { RecoveryInput } from "./types";
 
@@ -40,6 +40,11 @@ describe("requestRecommendation", () => {
   it("400인데 안내가 없거나 본문이 깨져 있으면 기본 안내를 돌려준다", async () => {
     expect(await requestRecommendation(input, fakeFetch({ error: {} }, 400))).toEqual({ ok: false, message: "입력값을 확인해 주세요." });
     expect(await requestRecommendation(input, fakeFetch("깨진 본문", 400))).toEqual({ ok: false, message: "입력값을 확인해 주세요." });
+  });
+
+  it("429(호출이 너무 많음)는 잠시 기다리라는 문구를 돌려준다", async () => {
+    const body = { error: { code: "RATE_LIMITED", message: "요청이 너무 많아요." } };
+    expect(await requestRecommendation(input, fakeFetch(body, 429))).toEqual({ ok: false, message: RATE_LIMITED_MESSAGE });
   });
 
   it("500 같은 서버 오류는 다시 시도해 달라는 문구를 돌려준다", async () => {

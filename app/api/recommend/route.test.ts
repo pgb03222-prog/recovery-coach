@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { createOpenAiAsk } from "../../../lib/ai/openai";
 import type { AskAi } from "../../../lib/ai/explain";
 import { calculateRecovery } from "../../../lib/recovery/recommend";
+import { RATE_LIMIT_MAX, resetRateLimit } from "../../../lib/rate-limit";
 import { POST } from "./route";
 
 // 시험에서는 실제 OpenAI를 부르지 않는다. 평소에는 AI가 없는(키 없음) 상태로 두고, 필요한 시험에서만 가짜 AI를 끼운다.
@@ -29,6 +30,7 @@ function post(body: unknown) {
 const valid = { yesterdayType: "cardio", yesterdayMinutes: 60, yesterdayEffort: 5, sleepHours: 4.5, soreness: 2 };
 
 afterEach(() => {
+  resetRateLimit();
   vi.restoreAllMocks();
 });
 
@@ -210,6 +212,33 @@ describe("POST /api/recommend - 415·413 형식과 크기", () => {
     const response = await POST(post({ ...valid, extra: "가".repeat(2000) }));
     expect(response.status).toBe(413);
     expect((await response.json()).error.code).toBe("PAYLOAD_TOO_LARGE");
+  });
+});
+
+describe("POST /api/recommend - 429 호출 횟수 제한", () => {
+  const from = (ip: string) =>
+    new Request(ENDPOINT, {
+      method: "POST",
+      headers: { "content-type": "application/json", "x-forwarded-for": ip },
+      body: JSON.stringify(valid),
+    });
+
+  it("한도를 넘으면 429이고 다시 시도할 시간을 알려 주며 AI를 부르지 않는다", async () => {
+    for (let i = 0; i < RATE_LIMIT_MAX; i++) expect((await POST(from("9.9.9.9"))).status).toBe(200);
+    const ask = vi.fn<AskAi>(async () => "");
+    vi.mocked(createOpenAiAsk).mockReturnValueOnce(ask);
+
+    const response = await POST(from("9.9.9.9"));
+    expect(response.status).toBe(429);
+    expect(Number(response.headers.get("retry-after"))).toBeGreaterThan(0);
+    expect((await response.json()).error.code).toBe("RATE_LIMITED");
+    expect(ask).not.toHaveBeenCalled();
+    vi.mocked(createOpenAiAsk).mockReset().mockReturnValue(undefined);
+  });
+
+  it("다른 주소는 영향받지 않는다", async () => {
+    for (let i = 0; i < RATE_LIMIT_MAX + 1; i++) await POST(from("9.9.9.9"));
+    expect((await POST(from("8.8.8.8"))).status).toBe(200);
   });
 });
 

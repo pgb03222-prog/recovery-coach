@@ -11,6 +11,9 @@ export type RecommendationResponse =
 /** 서버 오류나 연결 실패일 때 보여 줄 문구 */
 export const FETCH_FAILED_MESSAGE = "결과를 가져오지 못했어요. 잠시 후 다시 시도해 주세요.";
 
+/** 호출이 너무 많다는 응답(429)일 때 보여 줄 문구 */
+export const RATE_LIMITED_MESSAGE = "요청이 너무 많아요. 1분 정도 기다린 뒤 다시 시도해 주세요.";
+
 /** 입력이 틀렸다는 응답(400)에 안내가 들어 있지 않을 때 보여 줄 문구 */
 const INVALID_INPUT_MESSAGE = "입력값을 확인해 주세요.";
 
@@ -64,6 +67,7 @@ export async function requestRecommendation(
       return isRecoveryResult(data) ? { ok: true, data } : { ok: false, message: FETCH_FAILED_MESSAGE };
     }
     if (response.status === 400) return { ok: false, message: await readValidationMessage(response) };
+    if (response.status === 429) return { ok: false, message: RATE_LIMITED_MESSAGE };
     return { ok: false, message: FETCH_FAILED_MESSAGE };
   } catch {
     return { ok: false, message: FETCH_FAILED_MESSAGE };
