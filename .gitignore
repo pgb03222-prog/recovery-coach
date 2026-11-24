@@ -48,3 +48,6 @@ next-env.d.ts
 
 # clawd-on-desk (external open-source tool, not part of this app)
 /clawd-on-desk/
+
+.vercel
+.env*
