@@ -23,7 +23,7 @@ export default function ScoreCard({ score, reasons, notices }: ScoreCardProps) {
   return (
     <section
       aria-labelledby="score-heading"
-      className="flex flex-col gap-4 rounded-2xl border border-zinc-200 p-4 dark:border-zinc-700"
+      className="motion-fade-up flex flex-col gap-4 rounded-2xl border border-zinc-200 p-4 dark:border-zinc-700"
     >
       <h2 id="score-heading" className="text-lg font-semibold">
         회복 점수
@@ -43,7 +43,10 @@ export default function ScoreCard({ score, reasons, notices }: ScoreCardProps) {
           aria-valuenow={score}
           className="h-3 w-full overflow-hidden rounded-full bg-zinc-200 dark:bg-zinc-700"
         >
-          <div className="h-full rounded-full bg-emerald-600" style={{ width: `${score}%` }} />
+          <div
+            className="motion-grow-x h-full rounded-full bg-emerald-600"
+            style={{ width: `${score}%`, "--delay": "250ms" } as React.CSSProperties}
+          />
         </div>
       </div>
 

@@ -19,7 +19,8 @@ export default function RecommendationCard({ intensity, recommendations, explana
   return (
     <section
       aria-labelledby="recommendation-heading"
-      className="flex flex-col gap-4 rounded-2xl border border-zinc-200 p-4 dark:border-zinc-700"
+      className="motion-fade-up flex flex-col gap-4 rounded-2xl border border-zinc-200 p-4 dark:border-zinc-700"
+      style={{ "--delay": "150ms" } as React.CSSProperties}
     >
       <h2 id="recommendation-heading" className="text-lg font-semibold">
         오늘의 추천
@@ -35,7 +36,8 @@ export default function RecommendationCard({ intensity, recommendations, explana
           {INTENSITY_ORDER.map((step, index) => (
             <li key={step} className="flex flex-col gap-1">
               <span
-                className={`h-2.5 rounded-full ${index <= currentStep ? "bg-emerald-600" : "bg-zinc-200 dark:bg-zinc-700"}`}
+                className={`h-2.5 rounded-full ${index <= currentStep ? "motion-grow-x bg-emerald-600" : "bg-zinc-200 dark:bg-zinc-700"}`}
+                style={{ "--delay": `${400 + index * 120}ms` } as React.CSSProperties}
               />
               <span
                 className={`text-center text-xs ${index === currentStep ? "font-semibold" : "text-zinc-600 dark:text-zinc-400"}`}
@@ -48,8 +50,12 @@ export default function RecommendationCard({ intensity, recommendations, explana
       </div>
 
       <ul className="flex flex-col gap-2">
-        {recommendations.map((item) => (
-          <li key={item.name} className="rounded-xl bg-zinc-100 px-4 py-3 dark:bg-zinc-800">
+        {recommendations.map((item, index) => (
+          <li
+            key={item.name}
+            className="motion-fade-up rounded-xl bg-zinc-100 px-4 py-3 dark:bg-zinc-800"
+            style={{ "--delay": `${500 + index * 120}ms` } as React.CSSProperties}
+          >
             <p className="text-base font-semibold break-keep">{item.name}</p>
             <p className="text-sm break-keep text-zinc-700 dark:text-zinc-300">{item.reason}</p>
           </li>
