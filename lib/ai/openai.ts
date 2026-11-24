@@ -2,6 +2,8 @@
 // 키는 .env의 OPENAI_API_KEY에서 서버 쪽 코드로만 읽는다. NEXT_PUBLIC_ 이름을 쓰지 않고, 이 파일은 서버(API)에서만 가져다 쓴다.
 // 키가 없으면 undefined를 돌려주고, 그러면 설명은 규칙 기본 문장이 된다.
 
+// 서버에서만 쓰는 파일이다. 화면(브라우저) 코드에서 가져다 쓰면 빌드가 막힌다.
+import "server-only";
 import OpenAI from "openai";
 import { AI_TIMEOUT_MS } from "./explain";
 import type { AskAi } from "./explain";

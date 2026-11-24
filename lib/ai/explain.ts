@@ -1,5 +1,6 @@
 // Design Ref: §4 데이터 흐름 6단계, §4.3 기본 설명 문장, §9 보안 — 점수와 강도를 풀어 쓴 설명 문장을 만든다.
-// 1. 외부 AI에게 "계산 결과"만 보내 설명 문장을 받는다. 입력 원값(수면 시간 등)은 보내지 않는다.
+// 1. 외부 AI에게 "계산 결과"만 보내 설명 문장을 받는다. 입력 원값 그대로의 항목은 보내지 않지만,
+//    점수 근거 문장 속 근육통 점수·힘든 정도·운동 시간 숫자는 함께 나간다. (수면 시간은 "6시간 미만" 같은 구간으로만 나간다)
 // 2. AI가 실패하거나 느리거나, 응답이 규칙에 어긋나면(진단·치료 표현, 점수·강도가 계산과 다름) 규칙 기본 문장을 대신 쓴다.
 // 점수·강도·추천 운동은 AI가 정하지 않는다. AI는 이미 정해진 결과를 풀어 쓰기만 한다.
 
@@ -101,6 +102,17 @@ export function checkAiExplanation(rawText: unknown, input: ExplainInput): AiChe
   // 점수로 말한 숫자는 계산 결과에 나온 숫자(점수, 만점, 근거 문장 속 숫자)여야 한다.
   const allowedNumbers = new Set<number>([input.score, MAX_SCORE]);
   for (const match of input.scoreReasons.join(" ").matchAll(/\d+/g)) allowedNumbers.add(Number(match[0]));
+  // 링크(주소)는 설명 문장에 필요 없으므로 쓰지 않는다.
+  if (/https?:|www\.|:\/\//i.test(text)) return { ok: false, reason: "링크 포함" };
+
+  // 분·시간으로 말한 숫자도 계산 결과(근거 문장, 추천 운동 이름·이유)에 나온 숫자여야 한다.
+  const allowedDurations = new Set<number>();
+  const source = [...input.scoreReasons, ...input.recommendations.flatMap((item) => [item.name, item.reason])].join(" ");
+  for (const match of source.matchAll(/\d+/g)) allowedDurations.add(Number(match[0]));
+  for (const match of text.matchAll(/(\d+)\s*(?:분|시간)/g)) {
+    if (!allowedDurations.has(Number(match[1]))) return { ok: false, reason: "계산 결과에 없는 시간" };
+  }
+
   for (const match of text.matchAll(/(\d+)\s*점/g)) {
     if (!allowedNumbers.has(Number(match[1]))) return { ok: false, reason: "계산 결과에 없는 점수" };
   }

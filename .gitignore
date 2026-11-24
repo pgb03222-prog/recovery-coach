@@ -43,5 +43,8 @@ next-env.d.ts
 # trash-can (files waiting for manual deletion)
 /trash-can/
 
+# bkit plugin work records (local only)
+/.bkit/
+
 # clawd-on-desk (external open-source tool, not part of this app)
 /clawd-on-desk/

@@ -183,6 +183,36 @@ describe("POST /api/recommend - 400 입력 오류", () => {
   });
 });
 
+describe("POST /api/recommend - 415·413 형식과 크기", () => {
+  it("JSON이 아닌 형식(text/plain, form)은 415이고 AI를 부르지 않는다", async () => {
+    for (const type of ["text/plain", "application/x-www-form-urlencoded", ""]) {
+      const request = new Request(ENDPOINT, {
+        method: "POST",
+        headers: type ? { "content-type": type } : {},
+        body: JSON.stringify(valid),
+      });
+      const response = await POST(request);
+      expect(response.status).toBe(415);
+      expect((await response.json()).error.code).toBe("UNSUPPORTED_MEDIA_TYPE");
+    }
+  });
+
+  it("charset이 붙은 application/json은 받는다", async () => {
+    const request = new Request(ENDPOINT, {
+      method: "POST",
+      headers: { "content-type": "Application/JSON; charset=utf-8" },
+      body: JSON.stringify(valid),
+    });
+    expect((await POST(request)).status).toBe(200);
+  });
+
+  it("본문이 1KB를 넘으면 413이다", async () => {
+    const response = await POST(post({ ...valid, extra: "가".repeat(2000) }));
+    expect(response.status).toBe(413);
+    expect((await response.json()).error.code).toBe("PAYLOAD_TOO_LARGE");
+  });
+});
+
 describe("POST /api/recommend - 500 서버 오류", () => {
   it("계산 중 예상하지 못한 오류가 나면 500이고, 오류 내용은 응답에 담지 않는다", async () => {
     vi.spyOn(console, "error").mockImplementation(() => {});

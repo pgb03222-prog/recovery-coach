@@ -120,6 +120,24 @@ describe("checkAiExplanation - 응답 검사", () => {
     expect(checkAiExplanation(text, input)).toEqual({ ok: false, reason: "계산 결과와 다른 강도" });
   });
 
+  it.each([
+    "오늘 회복 점수는 50점이에요. 자세한 내용은 https://example.com 에서 보세요.",
+    "오늘 회복 점수는 50점이에요. www.example.com 을 참고하세요.",
+  ])("링크가 있으면 쓰지 않는다: %s", (text) => {
+    expect(checkAiExplanation(text, input)).toEqual({ ok: false, reason: "링크 포함" });
+  });
+
+  it("계산 결과에 없는 시간(분·시간)을 말하면 쓰지 않는다", () => {
+    expect(checkAiExplanation("오늘 회복 점수는 50점이에요. 가벼움 강도로 90분 달리세요.", input)).toEqual({
+      ok: false,
+      reason: "계산 결과에 없는 시간",
+    });
+  });
+
+  it("추천 이름이나 근거에 나온 시간(분·시간)은 말해도 된다", () => {
+    expect(checkAiExplanation("오늘 회복 점수는 50점이에요. 가벼운 걷기 30분과 요가 20분을 추천해요.", input).ok).toBe(true);
+  });
+
   it("강도가 아닌 곳에 '휴식'이나 '보통' 같은 낱말이 나와도 쓴다", () => {
     expect(checkAiExplanation("오늘 회복 점수는 50점이에요. 충분한 휴식도 챙기고, 보통 무게 운동은 내일로 미뤄요.", input).ok).toBe(true);
   });
