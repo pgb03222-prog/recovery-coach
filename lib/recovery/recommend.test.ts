@@ -46,7 +46,7 @@ describe("calculateRecovery - DESIGN 시험 표", () => {
     const result = calculateRecovery(value);
     expect(result.score).toBe(20);
     expect(result.intensity).toBe("rest");
-    expect(names(value)).toEqual(["충분히 쉬기", "가벼운 걷기 20분", "스트레칭"]);
+    expect(names(value)).toEqual(["충분히 쉬기", "천천히 걷기", "스트레칭"]);
     expect(result.explanation).toContain("쉬거나 가볍게 몸을 푸는 것");
   });
 

@@ -72,7 +72,12 @@ export function buildAiRequest(input: ExplainInput): AiRequest {
     "회복 점수": input.score,
     "점수 근거": input.scoreReasons,
     "오늘의 강도": INTENSITY_LABELS[input.intensity],
-    "추천 운동": input.recommendations.map((item) => ({ 이름: item.name, 이유: item.reason })),
+    "추천 운동": input.recommendations.map((item) => ({
+      이름: item.name,
+      // 권장 시간이 있으면 함께 보낸다. (설명 문장에서 "20분" 같은 시간을 말해도 계산 결과와 어긋나지 않게 한다)
+      ...(item.minutes === undefined ? {} : { "권장 시간(분)": item.minutes }),
+      이유: item.reason,
+    })),
   };
   return { instructions: AI_INSTRUCTIONS, input: JSON.stringify(data) };
 }
@@ -109,6 +114,7 @@ export function checkAiExplanation(rawText: unknown, input: ExplainInput): AiChe
   const allowedDurations = new Set<number>();
   const source = [...input.scoreReasons, ...input.recommendations.flatMap((item) => [item.name, item.reason])].join(" ");
   for (const match of source.matchAll(/\d+/g)) allowedDurations.add(Number(match[0]));
+  for (const item of input.recommendations) if (item.minutes !== undefined) allowedDurations.add(item.minutes);
   for (const match of text.matchAll(/(\d+)\s*(?:분|시간)/g)) {
     if (!allowedDurations.has(Number(match[1]))) return { ok: false, reason: "계산 결과에 없는 시간" };
   }

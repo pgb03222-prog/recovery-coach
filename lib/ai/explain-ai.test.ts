@@ -61,6 +61,30 @@ describe("buildAiRequest - AI에게 보내는 내용", () => {
   });
 });
 
+describe("권장 시간(minutes)", () => {
+  const withMinutes: ExplainInput = {
+    ...input,
+    recommendations: [
+      { name: "가벼운 걷기", category: "cardio", minutes: 35, reason: "숨이 차지 않는 정도로 움직이면 회복에 도움이 돼요" },
+      { name: "충분히 쉬기", category: "rest", reason: "회복할 시간을 주는 것이 좋아요" },
+    ],
+  };
+
+  it("권장 시간이 있는 추천만 AI 요청에 시간을 함께 담는다", () => {
+    const data = JSON.parse(buildAiRequest(withMinutes).input);
+    expect(data["추천 운동"][0]).toEqual({ 이름: "가벼운 걷기", "권장 시간(분)": 35, 이유: expect.any(String) });
+    expect(data["추천 운동"][1]).not.toHaveProperty("권장 시간(분)");
+  });
+
+  it("설명 문장에서 권장 시간을 말해도 통과하고, 다른 시간을 말하면 쓰지 않는다", () => {
+    expect(checkAiExplanation("오늘 회복 점수는 50점이에요. 가벼움 강도로 가벼운 걷기를 35분 해 보세요.", withMinutes).ok).toBe(true);
+    expect(checkAiExplanation("오늘 회복 점수는 50점이에요. 가벼움 강도로 가벼운 걷기를 50분 해 보세요.", withMinutes)).toEqual({
+      ok: false,
+      reason: "계산 결과에 없는 시간",
+    });
+  });
+});
+
 describe("checkAiExplanation - 응답 검사", () => {
   it("규칙에 맞는 응답은 통과한다 (앞뒤 공백은 지운다)", () => {
     expect(checkAiExplanation(`  ${GOOD_TEXT}\n`, input)).toEqual({ ok: true, text: GOOD_TEXT });

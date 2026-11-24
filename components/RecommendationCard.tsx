@@ -74,7 +74,14 @@ export default function RecommendationCard({ intensity, recommendations, explana
               {CATEGORY_ICONS[item.category]}
             </span>
             <div className="flex min-w-0 flex-col gap-0.5">
-              <p className="text-base font-bold break-keep">{item.name}</p>
+              <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-base font-bold break-keep">
+                {item.name}
+                {item.minutes !== undefined && (
+                  <span className="rounded-full bg-accent-soft px-2 py-0.5 text-xs font-medium text-accent-strong">
+                    {item.minutes}분 정도
+                  </span>
+                )}
+              </p>
               <p className="text-sm break-keep text-muted">{item.reason}</p>
               {item.details && item.details.length > 0 && (
                 <p className="mt-1 text-xs leading-relaxed break-keep text-muted">참고 종목: {item.details.join(" · ")}</p>

@@ -16,23 +16,23 @@ type Candidate = Recommendation | { category: "strength"; strength: true };
 export const EXERCISE_CANDIDATES: Readonly<Record<Intensity, readonly Candidate[]>> = {
   rest: [
     { name: "충분히 쉬기", category: "rest", reason: "오늘은 몸이 회복할 시간을 주는 것이 가장 좋아요" },
-    { name: "가벼운 걷기 20분", category: "cardio", reason: "피로가 남아 있어도 부담 없이 몸을 풀 수 있어요" },
-    { name: "스트레칭", category: "yoga", reason: "뭉친 근육을 천천히 풀어 회복을 도와요" },
+    { name: "천천히 걷기", category: "cardio", minutes: 20, reason: "피로가 남아 있어도 부담 없이 몸을 풀 수 있어요" },
+    { name: "스트레칭", category: "yoga", minutes: 10, reason: "뭉친 근육을 천천히 풀어 회복을 도와요" },
   ],
   light: [
-    { name: "가벼운 걷기 30분", category: "cardio", reason: "숨이 차지 않는 정도로 움직이면 회복에 도움이 돼요" },
-    { name: "요가·스트레칭 20분", category: "yoga", reason: "근육의 긴장을 풀고 유연성을 챙길 수 있어요" },
+    { name: "가벼운 걷기", category: "cardio", minutes: 30, reason: "숨이 차지 않는 정도로 움직이면 회복에 도움이 돼요" },
+    { name: "요가·스트레칭", category: "yoga", minutes: 20, reason: "근육의 긴장을 풀고 유연성을 챙길 수 있어요" },
     { category: "strength", strength: true },
   ],
   moderate: [
-    { name: "가벼운 조깅이나 자전거", category: "cardio", reason: "컨디션이 괜찮아서 적당히 심박을 올려도 좋아요" },
+    { name: "가벼운 조깅이나 자전거", category: "cardio", minutes: 30, reason: "컨디션이 괜찮아서 적당히 심박을 올려도 좋아요" },
     { category: "strength", strength: true },
-    { name: "가벼운 구기 운동", category: "sports", reason: "즐겁게 움직이면서 적당한 운동량을 채울 수 있어요" },
+    { name: "가벼운 구기 운동", category: "sports", minutes: 30, reason: "즐겁게 움직이면서 적당한 운동량을 채울 수 있어요" },
   ],
   high: [
-    { name: "인터벌 달리기", category: "cardio", reason: "컨디션이 좋아서 강하게 몰아붙여도 괜찮아요" },
+    { name: "인터벌 달리기", category: "cardio", minutes: 25, reason: "컨디션이 좋아서 강하게 몰아붙여도 괜찮아요" },
     { category: "strength", strength: true },
-    { name: "경기 형태 구기 운동", category: "sports", reason: "회복이 잘 돼서 경기처럼 강하게 움직여도 좋아요" },
+    { name: "경기 형태 구기 운동", category: "sports", minutes: 40, reason: "회복이 잘 돼서 경기처럼 강하게 움직여도 좋아요" },
   ],
 };
 
@@ -69,6 +69,9 @@ const FULL_BODY_DETAILS: Readonly<Record<Exclude<Intensity, "rest">, readonly st
   high: ["상체: 벤치프레스, 풀업", "하체: 바벨 스쿼트, 데드리프트", "코어: 행잉 레그레이즈"],
 };
 
+/** 근력 운동의 권장 시간(분). 강도가 높을수록 길게 잡는다. */
+const STRENGTH_MINUTES: Readonly<Record<Exclude<Intensity, "rest">, number>> = { light: 15, moderate: 30, high: 40 };
+
 /** 어제 근력 운동을 하지 않았을 때 추천하는 전신 근력 운동 */
 const FULL_BODY_EXERCISES: Readonly<Record<Exclude<Intensity, "rest">, string>> = {
   light: "가벼운 맨몸 전신 근력 운동",
@@ -104,6 +107,7 @@ function strengthRecommendation(input: RecoveryInput, intensity: Exclude<Intensi
     return {
       name: FULL_BODY_EXERCISES[intensity],
       category: "strength",
+      minutes: STRENGTH_MINUTES[intensity],
       reason: FULL_BODY_REASONS[intensity],
       details: [...FULL_BODY_DETAILS[intensity]],
     };
@@ -118,6 +122,7 @@ function strengthRecommendation(input: RecoveryInput, intensity: Exclude<Intensi
   return {
     name: STRENGTH_EXERCISES[target][intensity],
     category: "strength",
+    minutes: STRENGTH_MINUTES[intensity],
     reason: `어제 ${usedNames} 운동을 해서 오늘은 ${STRENGTH_PART_LABELS[target]}를 쓰면 회복과 균형에 좋아요`,
     details: [...STRENGTH_DETAILS[target][intensity]],
   };

@@ -11,12 +11,12 @@ const names = (list: { name: string }[]) => list.map((item) => item.name);
 describe("강도별 후보", () => {
   it("휴식은 쉬기·걷기·스트레칭만 추천한다 (PRD: 40점 미만은 휴식이나 가벼운 활동만)", () => {
     const result = recommendExercises(input("strength", 60, 5, 8, 1), "rest");
-    expect(names(result)).toEqual(["충분히 쉬기", "가벼운 걷기 20분", "스트레칭"]);
+    expect(names(result)).toEqual(["충분히 쉬기", "천천히 걷기", "스트레칭"]);
     for (const item of result) expect(["rest", "cardio", "yoga"]).toContain(item.category);
   });
 
   it.each([
-    ["light", ["가벼운 걷기 30분", "요가·스트레칭 20분", "가벼운 맨몸 전신 근력 운동"]],
+    ["light", ["가벼운 걷기", "요가·스트레칭", "가벼운 맨몸 전신 근력 운동"]],
     ["moderate", ["가벼운 조깅이나 자전거", "보통 무게 전신 근력 운동", "가벼운 구기 운동"]],
     ["high", ["인터벌 달리기", "고중량 근력 운동", "경기 형태 구기 운동"]],
   ] as const)("%s는 후보 3개를 표의 순서대로 추천한다", (intensity, expected) => {
@@ -89,8 +89,8 @@ describe("추천 항목", () => {
     first[0].name = "바뀐 이름";
     first.pop();
     expect(names(recommendExercises(rested(8, 1), "light"))).toEqual([
-      "가벼운 걷기 30분",
-      "요가·스트레칭 20분",
+      "가벼운 걷기",
+      "요가·스트레칭",
       "가벼운 맨몸 전신 근력 운동",
     ]);
   });
@@ -261,6 +261,39 @@ describe("근력 운동의 참고 종목(details)", () => {
   });
 });
 
+describe("권장 시간(minutes)", () => {
+  it("충분히 쉬기를 뺀 모든 추천에 권장 시간이 있다", () => {
+    for (const intensity of ["rest", "light", "moderate", "high"] as const) {
+      for (const item of recommendExercises(rested(8, 1), intensity)) {
+        if (item.category === "rest") expect(item.minutes).toBeUndefined();
+        else expect(item.minutes).toBeGreaterThanOrEqual(5);
+      }
+    }
+  });
+
+  it("강도별 시간: 휴식 20·10분, 가벼움 30·20·15분, 보통 30분, 높음 25·40·40분", () => {
+    const minutes = (intensity: Intensity) => recommendExercises(rested(8, 1), intensity).map((item) => item.minutes);
+    expect(minutes("rest")).toEqual([undefined, 20, 10]);
+    expect(minutes("light")).toEqual([30, 20, 15]);
+    expect(minutes("moderate")).toEqual([30, 30, 30]);
+    expect(minutes("high")).toEqual([25, 40, 40]);
+  });
+
+  it("근력 추천의 시간은 강도가 높을수록 길고, 부위별·전신 추천 모두 같다", () => {
+    const strengthMinutes = (value: RecoveryInput, intensity: Intensity) =>
+      recommendExercises(value, intensity).find((item) => item.category === "strength")?.minutes;
+    const part = input("strength", 40, 3, 8, 1, ["upper"]);
+    expect([strengthMinutes(part, "light"), strengthMinutes(part, "moderate"), strengthMinutes(part, "high")]).toEqual([15, 30, 40]);
+    expect(strengthMinutes(rested(8, 1), "moderate")).toBe(30);
+  });
+
+  it("추천 이름에는 시간이 들어 있지 않다 (시간은 따로 보여 준다)", () => {
+    for (const intensity of ["rest", "light", "moderate", "high"] as const) {
+      for (const item of recommendExercises(rested(8, 1), intensity)) expect(item.name).not.toMatch(/\d+\s*분/);
+    }
+  });
+});
+
 describe("어제 운동을 여러 개 했을 때", () => {
   it("힘든 정도 8 이상인 종류마다 높음에서 같은 종류를 뺀다", () => {
     const value = multi(
@@ -298,7 +331,7 @@ describe("어제 운동을 여러 개 했을 때", () => {
       1,
     );
     const result = recommendExercises(value, "high");
-    expect(names(result)).toEqual(["가벼운 걷기 30분", "요가·스트레칭 20분"]);
+    expect(names(result)).toEqual(["가벼운 걷기", "요가·스트레칭"]);
   });
 
   it("여러 근력 항목이 아니라 한 근력 운동의 부위를 합쳐서 본다", () => {

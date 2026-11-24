@@ -45,6 +45,8 @@ export interface Recommendation {
   category: ExerciseCategory;
   /** 운동마다 미리 정해 둔 한 줄 이유 */
   reason: string;
+  /** 권장 시간(분). 처음 시작할 때의 어림값이며, 컨디션에 따라 줄이거나 늘려도 된다. "충분히 쉬기"에는 없다. */
+  minutes?: number;
   /** 참고용 세부 종목 (예: 스쿼트, 런지). 근력 운동에만 있고, 화면에는 작은 글씨로 보여 준다. */
   details?: string[];
 }
