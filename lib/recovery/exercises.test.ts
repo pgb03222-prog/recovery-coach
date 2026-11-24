@@ -1,7 +1,7 @@
 // 운동 종류 추천(exercises.ts)이 DESIGN §4.3과 PRD의 "AI가 지킬 규칙"대로 나오는지 확인한다.
 
 import { describe, expect, it } from "vitest";
-import { EXERCISE_CANDIDATES, STRENGTH_EXERCISES, recommendExercises } from "./exercises";
+import { EXERCISE_CANDIDATES, STRENGTH_DETAILS, STRENGTH_EXERCISES, recommendExercises } from "./exercises";
 import { determineIntensity } from "./intensity";
 import type { Intensity, RecoveryInput, WorkoutType } from "./types";
 import { input, multi, rested } from "../test-support/inputs";
@@ -208,6 +208,56 @@ describe("근력 운동 세부 추천 (어제 쓴 부위를 피한다)", () => {
 
   it("휴식 강도에는 근력 운동이 없다", () => {
     expect(strengthToday(input("strength", 40, 3, 8, 1, ["upper"]), "rest")).toBeUndefined();
+  });
+});
+
+describe("근력 운동의 참고 종목(details)", () => {
+  const strengthToday = (value: RecoveryInput, intensity: Intensity) =>
+    recommendExercises(value, intensity).find((item) => item.category === "strength");
+
+  it("부위별 근력 추천에는 그 부위의 세부 종목이 붙는다", () => {
+    // 어제 상체 → 오늘 하체
+    const lower = strengthToday(input("strength", 40, 3, 8, 1, ["upper"]), "moderate");
+    expect(lower?.details).toEqual(["고블릿 스쿼트", "런지", "힙 쓰러스트"]);
+    // 어제 하체·상체 → 오늘 코어 (윗몸 일으키기 포함)
+    const core = strengthToday(input("strength", 40, 3, 8, 1, ["upper", "lower"]), "moderate");
+    expect(core?.details).toContain("윗몸 일으키기");
+  });
+
+  it("전신 근력 추천에는 상체·하체·코어 종목이 함께 붙는다", () => {
+    const full = strengthToday(rested(8, 1), "moderate");
+    expect(full?.name).toBe("보통 무게 전신 근력 운동");
+    expect(full?.details).toHaveLength(3);
+    expect(full?.details?.[0]).toContain("상체");
+    expect(full?.details?.[1]).toContain("하체");
+    expect(full?.details?.[2]).toContain("코어");
+    expect(full?.details?.join(" ")).toContain("스쿼트");
+    expect(full?.details?.join(" ")).toContain("윗몸 일으키기");
+  });
+
+  it("근력이 아닌 추천에는 세부 종목이 없다", () => {
+    for (const item of recommendExercises(rested(8, 1), "moderate")) {
+      if (item.category !== "strength") expect(item.details).toBeUndefined();
+    }
+  });
+
+  it("모든 강도·부위에 세부 종목이 비어 있지 않다", () => {
+    for (const byIntensity of Object.values(STRENGTH_DETAILS)) {
+      for (const list of Object.values(byIntensity)) {
+        expect(list.length).toBeGreaterThanOrEqual(2);
+        for (const detail of list) expect(detail.trim()).not.toBe("");
+      }
+    }
+  });
+
+  it("돌려받은 세부 종목을 고쳐도 표는 바뀌지 않는다", () => {
+    const first = strengthToday(input("strength", 40, 3, 8, 1, ["upper"]), "light");
+    first?.details?.push("바뀐 종목");
+    expect(strengthToday(input("strength", 40, 3, 8, 1, ["upper"]), "light")?.details).toEqual(STRENGTH_DETAILS.lower.light);
+  });
+
+  it("세부 종목은 부위 이름 표(STRENGTH_EXERCISES)의 이름과 짝이 맞는다", () => {
+    expect(Object.keys(STRENGTH_DETAILS).sort()).toEqual(Object.keys(STRENGTH_EXERCISES).sort());
   });
 });
 

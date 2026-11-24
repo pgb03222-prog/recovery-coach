@@ -36,23 +36,37 @@ export const EXERCISE_CANDIDATES: Readonly<Record<Intensity, readonly Candidate[
   ],
 };
 
-/** 부위별 세부 운동. 휴식 강도에서는 근력을 추천하지 않으므로 light, moderate, high만 있다. */
+/** 부위별 근력 운동 이름. 휴식 강도에서는 근력을 추천하지 않으므로 light, moderate, high만 있다. */
 export const STRENGTH_EXERCISES: Readonly<Record<StrengthPart, Readonly<Record<Exclude<Intensity, "rest">, string>>>> = {
+  upper: { light: "가벼운 맨몸 상체 운동", moderate: "보통 무게 상체 운동", high: "고중량 상체 운동" },
+  lower: { light: "가벼운 맨몸 하체 운동", moderate: "보통 무게 하체 운동", high: "고중량 하체 운동" },
+  core: { light: "가벼운 코어 운동", moderate: "보통 코어 운동", high: "고강도 코어 운동" },
+};
+
+/** 부위별 참고 종목. 정해진 처방이 아니라 "이런 운동이 있다"는 예시이다. */
+export const STRENGTH_DETAILS: Readonly<Record<StrengthPart, Readonly<Record<Exclude<Intensity, "rest">, readonly string[]>>>> = {
   upper: {
-    light: "가벼운 맨몸 상체 운동 (무릎 푸시업·밴드 로우)",
-    moderate: "보통 무게 상체 운동 (덤벨 숄더 프레스·덤벨 로우)",
-    high: "고중량 상체 운동 (벤치프레스·풀업)",
+    light: ["벽 푸시업", "무릎 푸시업", "밴드 로우"],
+    moderate: ["푸시업", "덤벨 숄더 프레스", "덤벨 로우"],
+    high: ["벤치프레스", "풀업", "바벨 오버헤드 프레스"],
   },
   lower: {
-    light: "가벼운 맨몸 하체 운동 (맨몸 스쿼트·브릿지)",
-    moderate: "보통 무게 하체 운동 (고블릿 스쿼트·런지)",
-    high: "고중량 하체 운동 (바벨 스쿼트·루마니안 데드리프트)",
+    light: ["맨몸 스쿼트", "브릿지", "카프 레이즈"],
+    moderate: ["고블릿 스쿼트", "런지", "힙 쓰러스트"],
+    high: ["바벨 스쿼트", "루마니안 데드리프트", "불가리안 스플릿 스쿼트"],
   },
   core: {
-    light: "가벼운 코어 운동 (데드버그·버드독)",
-    moderate: "보통 코어 운동 (플랭크·크런치)",
-    high: "고강도 코어 운동 (행잉 레그레이즈·롱 플랭크)",
+    light: ["데드버그", "버드독", "힐 터치"],
+    moderate: ["플랭크", "윗몸 일으키기", "크런치"],
+    high: ["행잉 레그레이즈", "롱 플랭크", "러시안 트위스트"],
   },
+};
+
+/** 전신 근력 운동의 참고 종목. 부위마다 한두 가지씩 보여 준다. */
+const FULL_BODY_DETAILS: Readonly<Record<Exclude<Intensity, "rest">, readonly string[]>> = {
+  light: ["상체: 무릎 푸시업", "하체: 맨몸 스쿼트", "코어: 데드버그"],
+  moderate: ["상체: 푸시업, 덤벨 로우", "하체: 스쿼트, 런지", "코어: 플랭크, 윗몸 일으키기"],
+  high: ["상체: 벤치프레스, 풀업", "하체: 바벨 스쿼트, 데드리프트", "코어: 행잉 레그레이즈"],
 };
 
 /** 어제 근력 운동을 하지 않았을 때 추천하는 전신 근력 운동 */
@@ -87,7 +101,12 @@ function strengthRecommendation(input: RecoveryInput, intensity: Exclude<Intensi
   const used = usedStrengthParts(input);
 
   if (used.size === 0) {
-    return { name: FULL_BODY_EXERCISES[intensity], category: "strength", reason: FULL_BODY_REASONS[intensity] };
+    return {
+      name: FULL_BODY_EXERCISES[intensity],
+      category: "strength",
+      reason: FULL_BODY_REASONS[intensity],
+      details: [...FULL_BODY_DETAILS[intensity]],
+    };
   }
 
   const target = STRENGTH_PARTS.find((part) => !used.has(part));
@@ -100,6 +119,7 @@ function strengthRecommendation(input: RecoveryInput, intensity: Exclude<Intensi
     name: STRENGTH_EXERCISES[target][intensity],
     category: "strength",
     reason: `어제 ${usedNames} 운동을 해서 오늘은 ${STRENGTH_PART_LABELS[target]}를 쓰면 회복과 균형에 좋아요`,
+    details: [...STRENGTH_DETAILS[target][intensity]],
   };
 }
 

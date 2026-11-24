@@ -45,6 +45,8 @@ export interface Recommendation {
   category: ExerciseCategory;
   /** 운동마다 미리 정해 둔 한 줄 이유 */
   reason: string;
+  /** 참고용 세부 종목 (예: 스쿼트, 런지). 근력 운동에만 있고, 화면에는 작은 글씨로 보여 준다. */
+  details?: string[];
 }
 
 /** 설명 문장을 만든 방식: 외부 AI 또는 규칙 기본 문장 */

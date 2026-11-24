@@ -76,6 +76,9 @@ export default function RecommendationCard({ intensity, recommendations, explana
             <div className="flex min-w-0 flex-col gap-0.5">
               <p className="text-base font-bold break-keep">{item.name}</p>
               <p className="text-sm break-keep text-muted">{item.reason}</p>
+              {item.details && item.details.length > 0 && (
+                <p className="mt-1 text-xs leading-relaxed break-keep text-muted">참고 종목: {item.details.join(" · ")}</p>
+              )}
             </div>
           </li>
         ))}
