@@ -1,30 +1,35 @@
 "use client";
 
-// Design Ref: §3 화면 구성 — 입력 5개 칸과 "확인하기" 버튼. 휴대폰 세로 화면을 기준으로 한 줄(한 열)로 배치한다.
-// Plan SC: 입력 5개, "어제 운동 안 함"이면 시간·힘든 정도 칸을 숨기고, 잘못된 값에는 안내를 보여 준다.
+// Design Ref: §3 화면 구성 — 어제 운동(여러 개 선택), 수면, 근육통 칸과 "확인하기" 버튼. 휴대폰 세로 화면을 기준으로 한 줄(한 열)로 배치한다.
+// Plan SC: "어제 운동 안 함"이면 운동 칸을 숨기고, 고른 운동마다 시간·힘든 정도(근력은 쓴 부위도)를 받으며, 잘못된 값에는 안내를 보여 준다.
 // 입력이 모두 올바르면 onSubmit으로 검사를 통과한 입력을 넘긴다. 서버 호출과 결과 화면은 RecoveryScreen이 맡는다.
 
 import { useState } from "react";
 import type { FormEvent } from "react";
-import { INPUT_LIMITS, YESTERDAY_TYPE_LABELS } from "@/lib/recovery/constants";
+import {
+  INPUT_LIMITS,
+  STRENGTH_PARTS,
+  STRENGTH_PART_LABELS,
+  WORKOUT_TYPES,
+  WORKOUT_TYPE_LABELS,
+} from "@/lib/recovery/constants";
 import { EMPTY_FORM_VALUES, parseFormValues } from "@/lib/recovery/form";
-import type { FormValues } from "@/lib/recovery/form";
-import type { RecoveryInput, YesterdayType } from "@/lib/recovery/types";
+import type { FormValues, WorkoutFormValue } from "@/lib/recovery/form";
+import type { RecoveryInput, StrengthPart, WorkoutType } from "@/lib/recovery/types";
 import type { FieldErrors } from "@/lib/recovery/validate";
 
-/** 칸의 위에서 아래 순서. 잘못된 칸이 여럿이면 가장 위의 칸으로 커서를 옮긴다. */
-const FIELD_ORDER: (keyof FormValues)[] = [
-  "yesterdayType",
-  "yesterdayMinutes",
-  "yesterdayEffort",
-  "sleepHours",
-  "soreness",
-];
+/** 칸 이름(오류 안내의 키)으로 칸의 id를 만든다. 안내 문구를 칸에 연결하고 커서를 옮길 때 쓴다. */
+const fieldId = (name: string) => `field-${name.replaceAll(".", "-")}`;
 
-const TYPE_OPTIONS = Object.entries(YESTERDAY_TYPE_LABELS) as [YesterdayType, string][];
-
-/** 칸의 id. 안내 문구를 칸에 연결할 때도 쓴다. */
-const fieldId = (name: keyof FormValues) => `field-${name}`;
+/** 잘못된 칸이 여럿이면 가장 위의 칸으로 커서를 옮기기 위한 순서. 선택한 운동 종류별 칸은 화면 순서대로 끼워 넣는다. */
+function fieldOrder(selectedTypes: WorkoutType[]): string[] {
+  const workoutFields = WORKOUT_TYPES.filter((type) => selectedTypes.includes(type)).flatMap((type) => [
+    `yesterdayWorkouts.${type}.minutes`,
+    `yesterdayWorkouts.${type}.effort`,
+    `yesterdayWorkouts.${type}.strengthParts`,
+  ]);
+  return ["yesterdayWorkouts", ...workoutFields, "sleepHours", "soreness"];
+}
 
 /** 칸 이름 글자 스타일 */
 const LABEL_CLASS = "text-sm font-medium";
@@ -45,7 +50,8 @@ function describedBy(id: string, hint?: string, error?: string) {
 }
 
 interface NumberFieldProps {
-  name: keyof FormValues;
+  /** 칸 이름. 오류 안내의 키와 같다. */
+  name: string;
   label: string;
   unit: string;
   hint: string;
@@ -53,7 +59,7 @@ interface NumberFieldProps {
   error?: string;
   step: number;
   inputMode: "numeric" | "decimal";
-  onChange: (name: keyof FormValues, value: string) => void;
+  onChange: (value: string) => void;
 }
 
 /** 숫자를 직접 적는 칸 (수면 시간, 운동 시간) */
@@ -72,7 +78,7 @@ function NumberField({ name, label, unit, hint, value, error, step, inputMode, o
           inputMode={inputMode}
           step={step}
           value={value}
-          onChange={(event) => onChange(name, event.target.value)}
+          onChange={(event) => onChange(event.target.value)}
           aria-invalid={error ? true : undefined}
           aria-describedby={describedBy(id, hint, error)}
           className={CONTROL_CLASS}
@@ -92,7 +98,8 @@ function NumberField({ name, label, unit, hint, value, error, step, inputMode, o
 }
 
 interface ScaleFieldProps {
-  name: keyof FormValues;
+  /** 칸 이름. 오류 안내의 키와 같다. */
+  name: string;
   legend: string;
   min: number;
   max: number;
@@ -102,7 +109,7 @@ interface ScaleFieldProps {
   error?: string;
   /** Tailwind는 클래스 이름을 글자 그대로 읽어야 해서, 열 개수 클래스를 통째로 받는다. */
   columnsClass: string;
-  onChange: (name: keyof FormValues, value: string) => void;
+  onChange: (value: string) => void;
 }
 
 /** 숫자 버튼 중 하나를 고르는 칸 (어제 힘든 정도, 근육통 정도) */
@@ -118,10 +125,10 @@ function ScaleField({ name, legend, min, max, lowLabel, highLabel, value, error,
             <input
               id={number === min ? id : undefined}
               type="radio"
-              name={name}
+              name={fieldId(name)}
               value={String(number)}
               checked={value === String(number)}
-              onChange={() => onChange(name, String(number))}
+              onChange={() => onChange(String(number))}
               className="peer sr-only"
             />
             <span
@@ -154,6 +161,41 @@ function ScaleField({ name, legend, min, max, lowLabel, highLabel, value, error,
   );
 }
 
+/** 체크박스 한 칸 (운동 종류, 근력 부위, 어제 운동 안 함) */
+function CheckOption({
+  label,
+  checked,
+  onChange,
+  id,
+}: {
+  label: string;
+  checked: boolean;
+  onChange: (checked: boolean) => void;
+  id?: string;
+}) {
+  return (
+    <label className="relative">
+      <input
+        id={id}
+        type="checkbox"
+        checked={checked}
+        onChange={(event) => onChange(event.target.checked)}
+        className="peer sr-only"
+      />
+      <span
+        className={
+          "flex min-h-11 cursor-pointer items-center justify-center rounded-lg border border-zinc-300 px-2 text-center text-base font-medium break-keep " +
+          "hover:bg-zinc-100 dark:border-zinc-600 dark:hover:bg-zinc-800 " +
+          "peer-checked:border-emerald-700 peer-checked:bg-emerald-700 peer-checked:text-white " +
+          "peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-emerald-700"
+        }
+      >
+        {label}
+      </span>
+    </label>
+  );
+}
+
 interface RecoveryFormProps {
   /** 입력이 모두 올바를 때, 검사를 통과한 입력을 넘겨받는다. */
   onSubmit: (input: RecoveryInput) => void;
@@ -165,18 +207,51 @@ export default function RecoveryForm({ onSubmit, submitting = false }: RecoveryF
   const [values, setValues] = useState<FormValues>(EMPTY_FORM_VALUES);
   const [errors, setErrors] = useState<FieldErrors>({});
 
-  /** "어제 운동 안 함"이면 시간과 힘든 정도 칸을 숨긴다. */
-  const rested = values.yesterdayType === "none";
-
-  function change(name: keyof FormValues, value: string) {
-    setValues((previous) => ({ ...previous, [name]: value }));
-    // 고친 칸의 안내 문구는 바로 지운다.
+  /** 고친 칸의 안내 문구를 바로 지운다. */
+  function clearErrors(...names: string[]) {
     setErrors((previous) => {
-      if (!(name in previous)) return previous;
+      if (!names.some((name) => name in previous)) return previous;
       const next = { ...previous };
-      delete next[name];
+      for (const name of names) delete next[name];
       return next;
     });
+  }
+
+  /** 운동 종류 하나를 체크하거나 푼다. 체크하면 "어제 운동 안 함"은 풀린다. */
+  function toggleType(type: WorkoutType, checked: boolean) {
+    setValues((previous) => ({
+      ...previous,
+      rested: checked ? false : previous.rested,
+      selectedTypes: checked
+        ? [...previous.selectedTypes.filter((selected) => selected !== type), type]
+        : previous.selectedTypes.filter((selected) => selected !== type),
+    }));
+    clearErrors("yesterdayWorkouts");
+  }
+
+  /** "어제 운동 안 함"을 체크하면 고른 운동은 모두 풀린다. */
+  function toggleRested(checked: boolean) {
+    setValues((previous) => ({ ...previous, rested: checked, selectedTypes: checked ? [] : previous.selectedTypes }));
+    clearErrors("yesterdayWorkouts");
+  }
+
+  function changeWorkout(type: WorkoutType, patch: Partial<WorkoutFormValue>, errorName: string) {
+    setValues((previous) => ({
+      ...previous,
+      workouts: { ...previous.workouts, [type]: { ...previous.workouts[type], ...patch } },
+    }));
+    clearErrors(`yesterdayWorkouts.${type}.${errorName}`);
+  }
+
+  function togglePart(type: WorkoutType, part: StrengthPart, checked: boolean) {
+    const parts = values.workouts[type].parts;
+    const next = checked ? [...parts.filter((p) => p !== part), part] : parts.filter((p) => p !== part);
+    changeWorkout(type, { parts: next }, "strengthParts");
+  }
+
+  function changeText(name: "sleepHours" | "soreness", value: string) {
+    setValues((previous) => ({ ...previous, [name]: value }));
+    clearErrors(name);
   }
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -191,71 +266,103 @@ export default function RecoveryForm({ onSubmit, submitting = false }: RecoveryF
 
     setErrors(result.errors);
     // 가장 위의 잘못된 칸으로 커서를 옮겨, 어디를 고칠지 바로 알 수 있게 한다.
-    const first = FIELD_ORDER.find((name) => result.errors[name]);
+    const first = fieldOrder(values.selectedTypes).find((name) => result.errors[name]);
     if (first) document.getElementById(fieldId(first))?.focus();
   }
 
   const { sleepHours, yesterdayMinutes, yesterdayEffort, soreness } = INPUT_LIMITS;
+  const typesError = errors.yesterdayWorkouts;
 
   return (
     <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-6">
       <section className="flex flex-col gap-4 rounded-2xl border border-zinc-200 p-4 dark:border-zinc-700">
         <h2 className="text-lg font-semibold">어제 운동</h2>
 
-        <div className="flex flex-col gap-1.5">
-          <label htmlFor={fieldId("yesterdayType")} className={LABEL_CLASS}>
-            어제 한 운동 종류
-          </label>
-          <select
-            id={fieldId("yesterdayType")}
-            name="yesterdayType"
-            value={values.yesterdayType}
-            onChange={(event) => change("yesterdayType", event.target.value)}
-            aria-invalid={errors.yesterdayType ? true : undefined}
-            aria-describedby={describedBy(fieldId("yesterdayType"), undefined, errors.yesterdayType)}
-            className={CONTROL_CLASS}
-          >
-            <option value="">선택해 주세요</option>
-            {TYPE_OPTIONS.map(([value, label]) => (
-              <option key={value} value={value}>
-                {label}
-              </option>
+        <fieldset
+          className="flex flex-col gap-1.5"
+          aria-describedby={typesError ? `${fieldId("yesterdayWorkouts")}-error` : undefined}
+        >
+          <legend className={LABEL_CLASS}>어제 한 운동 (여러 개 선택할 수 있어요)</legend>
+          <div className="grid grid-cols-2 gap-2">
+            {WORKOUT_TYPES.map((type, index) => (
+              <CheckOption
+                key={type}
+                id={index === 0 ? fieldId("yesterdayWorkouts") : undefined}
+                label={WORKOUT_TYPE_LABELS[type]}
+                checked={values.selectedTypes.includes(type)}
+                onChange={(checked) => toggleType(type, checked)}
+              />
             ))}
-          </select>
-          {errors.yesterdayType && (
-            <p id={`${fieldId("yesterdayType")}-error`} className={ERROR_CLASS}>
-              {errors.yesterdayType}
+            <CheckOption label="어제 운동 안 함" checked={values.rested} onChange={toggleRested} />
+          </div>
+          {typesError && (
+            <p id={`${fieldId("yesterdayWorkouts")}-error`} className={ERROR_CLASS}>
+              {typesError}
             </p>
           )}
-        </div>
+        </fieldset>
 
-        {!rested && (
-          <>
-            <NumberField
-              name="yesterdayMinutes"
-              label="어제 운동 시간"
-              unit="분"
-              hint={`${yesterdayMinutes.min}~${yesterdayMinutes.max}분 사이의 정수로 적어 주세요.`}
-              value={values.yesterdayMinutes}
-              error={errors.yesterdayMinutes}
-              step={yesterdayMinutes.step}
-              inputMode="numeric"
-              onChange={change}
-            />
-            <ScaleField
-              name="yesterdayEffort"
-              legend="어제 힘든 정도"
-              min={yesterdayEffort.min}
-              max={yesterdayEffort.max}
-              lowLabel="매우 가벼움"
-              highLabel="매우 힘듦"
-              value={values.yesterdayEffort}
-              error={errors.yesterdayEffort}
-              columnsClass="grid-cols-5"
-              onChange={change}
-            />
-          </>
-        )}
+        {WORKOUT_TYPES.filter((type) => values.selectedTypes.includes(type)).map((type) => {
+          const workout = values.workouts[type];
+          const prefix = `yesterdayWorkouts.${type}`;
+          const partsError = errors[`${prefix}.strengthParts`];
+          const title = WORKOUT_TYPE_LABELS[type];
+          return (
+            <div key={type} className="flex flex-col gap-4 rounded-xl bg-zinc-100 p-3 dark:bg-zinc-800">
+              <h3 className="text-base font-semibold">{title}</h3>
+              <NumberField
+                name={`${prefix}.minutes`}
+                label={`${title} 운동 시간`}
+                unit="분"
+                hint={`${yesterdayMinutes.min}~${yesterdayMinutes.max}분 사이의 정수로 적어 주세요.`}
+                value={workout.minutes}
+                error={errors[`${prefix}.minutes`]}
+                step={yesterdayMinutes.step}
+                inputMode="numeric"
+                onChange={(value) => changeWorkout(type, { minutes: value }, "minutes")}
+              />
+              <ScaleField
+                name={`${prefix}.effort`}
+                legend={`${title} 힘든 정도`}
+                min={yesterdayEffort.min}
+                max={yesterdayEffort.max}
+                lowLabel="매우 가벼움"
+                highLabel="매우 힘듦"
+                value={workout.effort}
+                error={errors[`${prefix}.effort`]}
+                columnsClass="grid-cols-5"
+                onChange={(value) => changeWorkout(type, { effort: value }, "effort")}
+              />
+              {type === "strength" && (
+                <fieldset
+                  className="flex flex-col gap-1.5"
+                  aria-describedby={partsError ? `${fieldId(`${prefix}.strengthParts`)}-error` : undefined}
+                >
+                  <legend className={LABEL_CLASS}>어제 쓴 부위 (여러 개 선택할 수 있어요)</legend>
+                  <div className="grid grid-cols-3 gap-2">
+                    {STRENGTH_PARTS.map((part, index) => (
+                      <CheckOption
+                        key={part}
+                        id={index === 0 ? fieldId(`${prefix}.strengthParts`) : undefined}
+                        label={STRENGTH_PART_LABELS[part]}
+                        checked={workout.parts.includes(part)}
+                        onChange={(checked) => togglePart(type, part, checked)}
+                      />
+                    ))}
+                  </div>
+                  <p className={HINT_CLASS}>
+                    오늘은 어제 쓴 부위를 쉬게 하고 다른 부위 운동을 추천해요. 전신 운동이었다면 세 부위를 모두 골라 주세요.
+                  </p>
+                  {partsError && (
+                    <p id={`${fieldId(`${prefix}.strengthParts`)}-error`} className={ERROR_CLASS}>
+                      {partsError}
+                    </p>
+                  )}
+                </fieldset>
+              )}
+            </div>
+          );
+        })}
       </section>
 
       <section className="flex flex-col gap-4 rounded-2xl border border-zinc-200 p-4 dark:border-zinc-700">
@@ -270,7 +377,7 @@ export default function RecoveryForm({ onSubmit, submitting = false }: RecoveryF
           error={errors.sleepHours}
           step={sleepHours.step}
           inputMode="decimal"
-          onChange={change}
+          onChange={(value) => changeText("sleepHours", value)}
         />
 
         <ScaleField
@@ -283,7 +390,7 @@ export default function RecoveryForm({ onSubmit, submitting = false }: RecoveryF
           value={values.soreness}
           error={errors.soreness}
           columnsClass="grid-cols-5"
-          onChange={change}
+          onChange={(value) => changeText("soreness", value)}
         />
       </section>
 

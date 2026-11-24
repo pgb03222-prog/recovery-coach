@@ -3,22 +3,8 @@
 import { describe, expect, it } from "vitest";
 import { NO_PENALTY_REASON, buildScoreReasons } from "./reasons";
 import { calculateRawScore } from "./score";
-import type { RecoveryInput, YesterdayType } from "./types";
-
-/** 입력을 짧게 만드는 도우미 */
-function input(
-  type: YesterdayType,
-  minutes: number | undefined,
-  effort: number | undefined,
-  sleepHours: number,
-  soreness: number,
-): RecoveryInput {
-  return { yesterdayType: type, yesterdayMinutes: minutes, yesterdayEffort: effort, sleepHours, soreness };
-}
-
-/** 운동을 쉰 날 입력 */
-const rested = (sleepHours: number, soreness: number): RecoveryInput =>
-  ({ yesterdayType: "none", sleepHours, soreness });
+import type { RecoveryInput } from "./types";
+import { input, rested } from "../test-support/inputs";
 
 describe("buildScoreReasons - 문장 내용", () => {
   it("감점이 없으면 '감점 요인이 없어요' 한 줄이다", () => {
@@ -126,6 +112,6 @@ describe("buildScoreReasons - 모든 입력 조합", () => {
 describe("검사를 통과하지 못한 입력", () => {
   it("오류를 던진다", () => {
     expect(() => buildScoreReasons(rested(8, 7))).toThrow(RangeError);
-    expect(() => buildScoreReasons(input("cardio", 60, undefined, 8, 1))).toThrow(RangeError);
+    expect(() => buildScoreReasons(input("cardio", 60, 11, 8, 1))).toThrow(RangeError);
   });
 });

@@ -4,22 +4,8 @@ import { describe, expect, it } from "vitest";
 import { INTENSITY_ORDER } from "./constants";
 import { determineIntensity, getMaxIntensity, intensityFromEffort, intensityFromScore } from "./intensity";
 import { calculateScore } from "./score";
-import type { Intensity, RecoveryInput, YesterdayType } from "./types";
-
-/** 입력을 짧게 만드는 도우미 */
-function input(
-  type: YesterdayType,
-  minutes: number | undefined,
-  effort: number | undefined,
-  sleepHours: number,
-  soreness: number,
-): RecoveryInput {
-  return { yesterdayType: type, yesterdayMinutes: minutes, yesterdayEffort: effort, sleepHours, soreness };
-}
-
-/** 운동을 쉰 날 입력 */
-const rested = (sleepHours: number, soreness: number): RecoveryInput =>
-  ({ yesterdayType: "none", sleepHours, soreness });
+import type { Intensity, RecoveryInput } from "./types";
+import { input, multi, rested } from "../test-support/inputs";
 
 const step = (intensity: Intensity) => INTENSITY_ORDER.indexOf(intensity);
 
@@ -155,6 +141,19 @@ describe("determineIntensity - 모든 입력 조합", () => {
       for (let effort = 1; effort <= 10; effort += 1) {
         cases.push(input("cardio", 60, effort, sleep, soreness));
       }
+      // 어제 운동을 두 개 했을 때(힘든 정도가 서로 다른 조합)도 함께 본다.
+      for (const [effortA, effortB] of [[2, 9], [9, 2], [3, 3], [6, 8], [10, 10]]) {
+        cases.push(
+          multi(
+            [
+              { type: "cardio", minutes: 50, effort: effortA },
+              { type: "yoga", minutes: 50, effort: effortB },
+            ],
+            sleep,
+            soreness,
+          ),
+        );
+      }
     }
   }
 
@@ -175,15 +174,16 @@ describe("determineIntensity - 모든 입력 조합", () => {
 
   it("어제 운동을 했으면 어제 강도보다 한 단계 넘게 올라가지 않는다", () => {
     for (const value of cases) {
-      if (value.yesterdayType === "none" || value.yesterdayEffort === undefined) continue;
-      const yesterday = intensityFromEffort(value.yesterdayEffort);
+      if (value.yesterdayWorkouts.length === 0) continue;
+      // 여러 개를 했으면 가장 힘들었던 운동의 힘든 정도로 어제 강도를 본다.
+      const yesterday = intensityFromEffort(Math.max(...value.yesterdayWorkouts.map((workout) => workout.effort)));
       expect(step(determineIntensity(value).intensity)).toBeLessThanOrEqual(step(yesterday) + 1);
     }
   });
 
   it("어제 운동을 쉬었으면 보통을 넘지 않는다", () => {
     for (const value of cases) {
-      if (value.yesterdayType !== "none") continue;
+      if (value.yesterdayWorkouts.length > 0) continue;
       expect(step(determineIntensity(value).intensity)).toBeLessThanOrEqual(step("moderate"));
     }
   });
@@ -192,6 +192,6 @@ describe("determineIntensity - 모든 입력 조합", () => {
 describe("검사를 통과하지 못한 입력", () => {
   it("오류를 던진다", () => {
     expect(() => determineIntensity(rested(8, 7))).toThrow(RangeError);
-    expect(() => determineIntensity(input("cardio", 60, undefined, 8, 1))).toThrow(RangeError);
+    expect(() => determineIntensity(input("cardio", 60, 11, 8, 1))).toThrow(RangeError);
   });
 });

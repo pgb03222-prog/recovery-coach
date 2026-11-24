@@ -4,22 +4,8 @@
 import { describe, expect, it } from "vitest";
 import { calculateRecovery } from "./recommend";
 import { CONSULT_NOTICE, SEVERE_SORENESS_NOTICE } from "./notices";
-import type { RecoveryInput, YesterdayType } from "./types";
-
-/** 입력을 짧게 만드는 도우미 */
-function input(
-  type: YesterdayType,
-  minutes: number | undefined,
-  effort: number | undefined,
-  sleepHours: number,
-  soreness: number,
-): RecoveryInput {
-  return { yesterdayType: type, yesterdayMinutes: minutes, yesterdayEffort: effort, sleepHours, soreness };
-}
-
-/** 운동을 쉰 날 입력 */
-const rested = (sleepHours: number, soreness: number): RecoveryInput =>
-  ({ yesterdayType: "none", sleepHours, soreness });
+import type { RecoveryInput, WorkoutType } from "./types";
+import { input, multi, rested } from "../test-support/inputs";
 
 const names = (value: RecoveryInput) => calculateRecovery(value).recommendations.map((item) => item.name);
 
@@ -105,13 +91,34 @@ describe("calculateRecovery - DESIGN 시험 표", () => {
 
 describe("calculateRecovery - 모든 입력 조합에서 PRD 규칙 확인", () => {
   const cases: RecoveryInput[] = [];
-  const types: YesterdayType[] = ["cardio", "strength", "sports", "yoga", "other"];
+  const types: WorkoutType[] = ["cardio", "strength", "sports", "yoga", "other"];
   for (let soreness = 1; soreness <= 5; soreness += 1) {
     for (let sleep = 0; sleep <= 14; sleep += 0.5) {
       cases.push(rested(sleep, soreness));
       for (const type of types) {
         for (const effort of [1, 3, 4, 6, 7, 8, 9, 10]) {
           cases.push(input(type, 60, effort, sleep, soreness));
+        }
+      }
+
+      // 어제 운동을 두 개 한 경우도 함께 본다. (종류 2개 × 힘든 정도 조합, 근력은 부위를 바꿔 가며)
+      for (let first = 0; first < types.length; first += 1) {
+        for (let second = first + 1; second < types.length; second += 1) {
+          for (const effortA of [3, 8, 10]) {
+            for (const effortB of [2, 8, 9]) {
+              const parts = (type: WorkoutType) => (type === "strength" ? { strengthParts: ["upper" as const, "lower" as const] } : {});
+              cases.push(
+                multi(
+                  [
+                    { type: types[first], minutes: 50, effort: effortA, ...parts(types[first]) },
+                    { type: types[second], minutes: 50, effort: effortB, ...parts(types[second]) },
+                  ],
+                  sleep,
+                  soreness,
+                ),
+              );
+            }
+          }
         }
       }
     }
@@ -145,8 +152,9 @@ describe("calculateRecovery - 모든 입력 조합에서 PRD 규칙 확인", () 
 
   it("어제 힘든 정도가 8 이상이고 오늘이 높음이면 어제와 같은 종류를 추천하지 않는다", () => {
     for (const { value, result } of results) {
-      if (result.intensity !== "high" || (value.yesterdayEffort ?? 0) < 8) continue;
-      for (const item of result.recommendations) expect(item.category).not.toBe(value.yesterdayType);
+      const hardTypes: string[] = value.yesterdayWorkouts.filter((workout) => workout.effort >= 8).map((workout) => workout.type);
+      if (result.intensity !== "high" || hardTypes.length === 0) continue;
+      for (const item of result.recommendations) expect(hardTypes).not.toContain(item.category);
     }
   });
 

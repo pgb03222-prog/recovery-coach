@@ -1,13 +1,13 @@
 // Design Ref: §4.1~4.2, PRD §5 — 감점표 숫자, 점수 상한, 강도 구간을 한 곳에 모아 둔다.
 // 규칙 숫자를 바꿀 때는 이 파일만 고치면 되고, 계산 함수는 이 값을 읽어서 쓴다.
 
-import type { Intensity, YesterdayType } from "./types";
+import type { Intensity, StrengthPart, WorkoutType } from "./types";
 
 // ---------------------------------------------------------------------------
 // 입력 범위 (PRD §4, DESIGN §4.6)
 // ---------------------------------------------------------------------------
 
-/** 입력 5개의 허용 범위 */
+/** 숫자 입력 칸의 허용 범위. 운동 시간과 힘든 정도는 어제 운동 종류마다 따로 받는다. */
 export const INPUT_LIMITS = {
   /** 수면 시간: 0~14시간, 0.5시간 단위 */
   sleepHours: { min: 0, max: 14, step: 0.5 },
@@ -19,14 +19,26 @@ export const INPUT_LIMITS = {
   soreness: { min: 1, max: 5, step: 1 },
 } as const;
 
-/** 화면에 보여 줄 어제 운동 종류 이름 (선택 순서대로) */
-export const YESTERDAY_TYPE_LABELS: Record<YesterdayType, string> = {
+/** 어제 운동 종류 (화면에 보여 주는 순서) */
+export const WORKOUT_TYPES: readonly WorkoutType[] = ["cardio", "strength", "sports", "yoga", "other"];
+
+/** 화면에 보여 줄 어제 운동 종류 이름 */
+export const WORKOUT_TYPE_LABELS: Record<WorkoutType, string> = {
   cardio: "유산소",
   strength: "근력",
   sports: "구기·스포츠",
   yoga: "요가·스트레칭",
   other: "기타",
-  none: "어제 운동 안 함",
+};
+
+/** 근력 운동 부위 (화면에 보여 주는 순서와 오늘 추천할 때의 우선순위) */
+export const STRENGTH_PARTS: readonly StrengthPart[] = ["upper", "lower", "core"];
+
+/** 화면과 추천 문장에 쓰는 근력 부위 이름 */
+export const STRENGTH_PART_LABELS: Record<StrengthPart, string> = {
+  upper: "상체",
+  lower: "하체",
+  core: "코어",
 };
 
 // ---------------------------------------------------------------------------

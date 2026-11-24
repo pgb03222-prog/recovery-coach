@@ -14,6 +14,7 @@ import {
 } from "./constants";
 import { calculateScore } from "./score";
 import type { Intensity, RecoveryInput } from "./types";
+import { maxEffort } from "./workouts";
 
 /** 강도 단계의 순서 번호. 휴식 0, 가벼움 1, 보통 2, 높음 3 */
 function stepOf(intensity: Intensity): number {
@@ -50,13 +51,14 @@ export function intensityFromEffort(effort: number): Intensity {
 /**
  * 어제 기준으로 오늘 허용되는 가장 높은 강도.
  * - 어제 운동을 했으면: 어제 강도보다 한 단계 위까지 (높음보다 위는 없다)
+ *   (여러 개를 했으면 가장 힘들었던 운동의 힘든 정도로 어제 강도를 본다)
  * - 어제 운동을 안 했으면: 보통까지. (어제 가볍게 한 사람보다 쉰 사람이 더 높은 강도를 받는 순서 뒤집힘을 막는다)
  */
 export function getMaxIntensity(input: RecoveryInput): Intensity {
-  if (input.yesterdayType === "none") return REST_DAY_MAX_INTENSITY;
+  const effort = maxEffort(input.yesterdayWorkouts);
+  if (effort === undefined) return REST_DAY_MAX_INTENSITY;
 
-  if (input.yesterdayEffort === undefined) throw new RangeError("어제 힘든 정도가 없습니다.");
-  const yesterday = intensityFromEffort(input.yesterdayEffort);
+  const yesterday = intensityFromEffort(effort);
   const maxStep = Math.min(stepOf(yesterday) + MAX_INTENSITY_STEP_UP, INTENSITY_ORDER.length - 1);
   return INTENSITY_ORDER[maxStep];
 }

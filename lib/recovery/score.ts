@@ -16,6 +16,7 @@ import {
   SORENESS_PENALTIES,
 } from "./constants";
 import type { RecoveryInput } from "./types";
+import { maxEffort, totalMinutes } from "./workouts";
 
 /** 점수를 깎는 항목 이름 */
 export type PenaltyFactor = "sleep" | "soreness" | "effort" | "longWorkout";
@@ -50,17 +51,15 @@ export function getPenalties(input: RecoveryInput): Penalty[] {
   if (sorenessPenalty === undefined) throw new RangeError(`근육통 정도가 범위를 벗어났습니다: ${input.soreness}`);
   add("soreness", sorenessPenalty);
 
-  // 어제 운동을 안 했으면 힘든 정도와 운동 시간은 점수에 쓰지 않는다. (값이 와 있어도 무시)
-  if (input.yesterdayType !== "none") {
-    const { yesterdayEffort: effort, yesterdayMinutes: minutes } = input;
-    if (effort === undefined) throw new RangeError("어제 힘든 정도가 없습니다.");
-    if (minutes === undefined) throw new RangeError("어제 운동 시간이 없습니다.");
-
+  // 어제 운동을 안 했으면(운동 목록이 비어 있으면) 힘든 정도와 운동 시간은 점수에 쓰지 않는다.
+  // 여러 개를 했으면 힘든 정도는 가장 힘들었던 운동의 값, 운동 시간은 모든 운동의 합계를 쓴다.
+  const effort = maxEffort(input.yesterdayWorkouts);
+  if (effort !== undefined) {
     const effortRule = EFFORT_PENALTIES.find((rule) => effort <= rule.maxEffort);
     if (!effortRule) throw new RangeError(`어제 힘든 정도가 범위를 벗어났습니다: ${effort}`);
     add("effort", effortRule.penalty);
 
-    if (minutes >= LONG_WORKOUT_MINUTES) add("longWorkout", LONG_WORKOUT_PENALTY);
+    if (totalMinutes(input.yesterdayWorkouts) >= LONG_WORKOUT_MINUTES) add("longWorkout", LONG_WORKOUT_PENALTY);
   }
 
   return penalties;

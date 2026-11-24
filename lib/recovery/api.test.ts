@@ -5,7 +5,7 @@ import { FETCH_FAILED_MESSAGE, RATE_LIMITED_MESSAGE, requestRecommendation } fro
 import { calculateRecovery } from "./recommend";
 import type { RecoveryInput } from "./types";
 
-const input: RecoveryInput = { yesterdayType: "none", sleepHours: 8, soreness: 1 };
+const input: RecoveryInput = { yesterdayWorkouts: [], sleepHours: 8, soreness: 1 };
 
 /** 정해 둔 응답을 돌려주는 가짜 fetch */
 function fakeFetch(body: unknown, status = 200) {

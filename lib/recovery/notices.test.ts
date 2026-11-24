@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 import { CONSULT_NOTICE, DISCLAIMER_TEXT, SEVERE_SORENESS_NOTICE, buildNotices } from "./notices";
 import type { RecoveryInput } from "./types";
 
-const rested = (soreness: number): RecoveryInput => ({ yesterdayType: "none", sleepHours: 8, soreness });
+const rested = (soreness: number): RecoveryInput => ({ yesterdayWorkouts: [], sleepHours: 8, soreness });
 
 describe("안내 문구", () => {
   it("PRD가 정한 문구와 같다", () => {

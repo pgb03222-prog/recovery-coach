@@ -3,22 +3,8 @@
 
 import { describe, expect, it } from "vitest";
 import { calculateRawScore, calculateScore, getCapCauses, getPenalties } from "./score";
-import type { RecoveryInput, YesterdayType } from "./types";
-
-/** 입력을 짧게 만드는 도우미 */
-function input(
-  type: YesterdayType,
-  minutes: number | undefined,
-  effort: number | undefined,
-  sleepHours: number,
-  soreness: number,
-): RecoveryInput {
-  return { yesterdayType: type, yesterdayMinutes: minutes, yesterdayEffort: effort, sleepHours, soreness };
-}
-
-/** 운동을 쉰 날 입력 */
-const rested = (sleepHours: number, soreness: number): RecoveryInput =>
-  ({ yesterdayType: "none", sleepHours, soreness });
+import type { YesterdayWorkout } from "./types";
+import { input, multi, rested } from "../test-support/inputs";
 
 describe("calculateRawScore - DESIGN 시험 표", () => {
   it.each([
@@ -94,9 +80,37 @@ describe("calculateRawScore - 경계값", () => {
 });
 
 describe("calculateRawScore - 쉰 날", () => {
-  it("힘든 정도와 운동 시간 값이 와 있어도 점수에 쓰지 않는다", () => {
-    const withExtra = { yesterdayType: "none", yesterdayMinutes: 240, yesterdayEffort: 10, sleepHours: 8, soreness: 1 } as const;
-    expect(calculateRawScore(withExtra)).toBe(100);
+  it("어제 운동 목록이 비어 있으면 힘든 정도와 운동 시간 감점이 없다", () => {
+    expect(calculateRawScore({ yesterdayWorkouts: [], sleepHours: 8, soreness: 1 })).toBe(100);
+  });
+});
+
+describe("calculateRawScore - 어제 운동이 여러 개", () => {
+  const day = (workouts: YesterdayWorkout[]) => multi(workouts, 8, 1);
+
+  it("힘든 정도는 가장 힘들었던 운동의 값으로 감점한다", () => {
+    const score = calculateRawScore(
+      day([
+        { type: "cardio", minutes: 20, effort: 3 },
+        { type: "sports", minutes: 20, effort: 9 },
+      ]),
+    );
+    expect(score).toBe(70); // 힘든 9 → -30, 합계 40분이라 긴 운동 감점 없음
+  });
+
+  it("운동 시간은 모두 합쳐서 90분 이상이면 긴 운동 시간으로 감점한다", () => {
+    const workouts: YesterdayWorkout[] = [
+      { type: "cardio", minutes: 50, effort: 2 },
+      { type: "yoga", minutes: 40, effort: 1 },
+    ];
+    expect(getPenalties(day(workouts))).toEqual([{ factor: "longWorkout", amount: 10 }]);
+    expect(getPenalties(day([workouts[0], { ...workouts[1], minutes: 39 }]))).toEqual([]);
+  });
+
+  it("운동 하나짜리와 같은 값이면 같은 점수이다", () => {
+    expect(calculateRawScore(day([{ type: "cardio", minutes: 60, effort: 5 }]))).toBe(
+      calculateRawScore(input("cardio", 60, 5, 8, 1)),
+    );
   });
 });
 
@@ -210,11 +224,6 @@ describe("getCapCauses", () => {
 });
 
 describe("검사를 통과하지 못한 입력", () => {
-  it("운동을 했는데 힘든 정도나 시간이 없으면 오류를 던진다", () => {
-    expect(() => calculateRawScore(input("cardio", 60, undefined, 8, 1))).toThrow(RangeError);
-    expect(() => calculateRawScore(input("cardio", undefined, 5, 8, 1))).toThrow(RangeError);
-  });
-
   it("범위 밖 값이면 오류를 던진다", () => {
     expect(() => calculateRawScore(rested(-1, 1))).toThrow(RangeError);
     expect(() => calculateRawScore(rested(8, 7))).toThrow(RangeError);

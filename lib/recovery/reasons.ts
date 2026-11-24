@@ -6,6 +6,7 @@ import { INPUT_LIMITS, LONG_WORKOUT_MINUTES, SCORE_CAP, SLEEP_PENALTIES } from "
 import { calculateScore, getPenalties } from "./score";
 import type { CapCause, Penalty } from "./score";
 import type { RecoveryInput } from "./types";
+import { maxEffort, totalMinutes } from "./workouts";
 
 /** 감점이 하나도 없을 때 보여 줄 근거 */
 export const NO_PENALTY_REASON = "감점 요인이 없어요";
@@ -29,10 +30,15 @@ function describePenalty(penalty: Penalty, input: RecoveryInput): string {
     }
     case "soreness":
       return `근육통이 ${input.soreness}점이라 ${points}`;
-    case "effort":
-      return `어제 힘든 정도가 ${INPUT_LIMITS.yesterdayEffort.max}점 중 ${input.yesterdayEffort}점이라 ${points}`;
-    case "longWorkout":
-      return `어제 운동 시간이 ${input.yesterdayMinutes}분(${LONG_WORKOUT_MINUTES}분 이상)이라 ${points}`;
+    case "effort": {
+      // 운동이 하나면 "어제 힘든 정도", 여러 개면 그중 가장 힘들었던 값이라는 것을 문장에 드러낸다.
+      const subject = input.yesterdayWorkouts.length > 1 ? "어제 운동 중 가장 힘든 정도가" : "어제 힘든 정도가";
+      return `${subject} ${INPUT_LIMITS.yesterdayEffort.max}점 중 ${maxEffort(input.yesterdayWorkouts)}점이라 ${points}`;
+    }
+    case "longWorkout": {
+      const subject = input.yesterdayWorkouts.length > 1 ? "어제 운동 시간이 합쳐서" : "어제 운동 시간이";
+      return `${subject} ${totalMinutes(input.yesterdayWorkouts)}분(${LONG_WORKOUT_MINUTES}분 이상)이라 ${points}`;
+    }
   }
 }
 

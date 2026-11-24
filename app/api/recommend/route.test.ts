@@ -27,7 +27,7 @@ function post(body: unknown) {
   });
 }
 
-const valid = { yesterdayType: "cardio", yesterdayMinutes: 60, yesterdayEffort: 5, sleepHours: 4.5, soreness: 2 };
+const valid = { yesterdayWorkouts: [{ type: "cardio", minutes: 60, effort: 5 }], sleepHours: 4.5, soreness: 2 };
 
 afterEach(() => {
   resetRateLimit();
@@ -51,17 +51,29 @@ describe("POST /api/recommend - 정상", () => {
   });
 
   it("어제 운동 안 함이면 시간과 힘든 정도 없이도 200이다", async () => {
-    const response = await POST(post({ yesterdayType: "none", sleepHours: 8, soreness: 1 }));
+    const response = await POST(post({ yesterdayWorkouts: [], sleepHours: 8, soreness: 1 }));
     expect(response.status).toBe(200);
     expect((await response.json()).score).toBe(100);
   });
 
-  it("어제 운동 안 함이면 함께 온 시간과 힘든 정도는 무시한다", async () => {
+  it("어제 운동을 여러 개 했으면 가장 힘든 정도와 합친 시간으로 계산한다", async () => {
     const response = await POST(
-      post({ yesterdayType: "none", yesterdayMinutes: 9999, yesterdayEffort: "아주", sleepHours: 8, soreness: 1 }),
+      post({
+        yesterdayWorkouts: [
+          { type: "cardio", minutes: 50, effort: 3 },
+          { type: "strength", minutes: 45, effort: 9, strengthParts: ["upper", "lower"] },
+        ],
+        sleepHours: 8,
+        soreness: 1,
+      }),
     );
     expect(response.status).toBe(200);
-    expect((await response.json()).score).toBe(100);
+    const body = await response.json();
+    expect(body.score).toBe(60); // 힘든 9 → -30, 합계 95분 → -10
+    expect(body.scoreReasons).toContain("어제 운동 중 가장 힘든 정도가 10점 중 9점이라 30점 줄었어요");
+    expect(body.scoreReasons).toContain("어제 운동 시간이 합쳐서 95분(90분 이상)이라 10점 줄었어요");
+    // 어제 상체·하체를 썼으니 오늘 근력은 코어이다.
+    expect(body.recommendations.find((item: { category: string }) => item.category === "strength")?.name).toContain("코어");
   });
 
   it("같은 요청이면 같은 응답이다", async () => {
@@ -98,7 +110,7 @@ describe("POST /api/recommend - AI 설명", () => {
     expect(ask).toHaveBeenCalledTimes(1);
     const sent = JSON.stringify(ask.mock.calls[0][0]);
     expect(sent).toContain("회복 점수");
-    for (const rawKey of ["sleepHours", "soreness", "yesterdayMinutes", "yesterdayEffort", "yesterdayType"]) {
+    for (const rawKey of ["sleepHours", "soreness", "yesterdayWorkouts", "strengthParts", "minutes", "effort"]) {
       expect(sent).not.toContain(rawKey);
     }
   });
@@ -146,9 +158,9 @@ describe("POST /api/recommend - 400 입력 오류", () => {
   });
 
   it("운동 시간 1분은 400이다", async () => {
-    const response = await POST(post({ ...valid, yesterdayMinutes: 1 }));
+    const response = await POST(post({ ...valid, yesterdayWorkouts: [{ type: "cardio", minutes: 1, effort: 5 }] }));
     expect(response.status).toBe(400);
-    expect((await response.json()).error.details).toHaveProperty("yesterdayMinutes");
+    expect((await response.json()).error.details).toHaveProperty("yesterdayWorkouts.cardio.minutes");
   });
 
   it("틀린 칸이 여러 개면 모두 알려 준다", async () => {
@@ -158,9 +170,13 @@ describe("POST /api/recommend - 400 입력 오류", () => {
   });
 
   it("운동을 했는데 시간과 힘든 정도가 없으면 400이다", async () => {
-    const response = await POST(post({ yesterdayType: "strength", sleepHours: 7, soreness: 2 }));
+    const response = await POST(post({ yesterdayWorkouts: [{ type: "strength" }], sleepHours: 7, soreness: 2 }));
     expect(response.status).toBe(400);
-    expect(Object.keys((await response.json()).error.details).sort()).toEqual(["yesterdayEffort", "yesterdayMinutes"]);
+    expect(Object.keys((await response.json()).error.details).sort()).toEqual([
+      "yesterdayWorkouts.strength.effort",
+      "yesterdayWorkouts.strength.minutes",
+      "yesterdayWorkouts.strength.strengthParts",
+    ]);
   });
 
   it("JSON이 아닌 본문은 400이다", async () => {
